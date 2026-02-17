@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-zinc-950 text-zinc-50;
+}
+/* ========= Fonts (Android -> Web) ========= */
+@font-face {
+  font-family: "Bebas";
+  src: url("./assets/fonts/bebas.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Orbitron";
+  src: url("./assets/fonts/orbitron.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Pacifico";
+  src: url("./assets/fonts/pacifico.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Pixel";
+  src: url("./assets/fonts/pixel.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Creepy";
+  src: url("./assets/fonts/creepy.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* Classes fáceis (pra usar direto no className) */
+.font-bebas { font-family: "Bebas", system-ui, sans-serif; }
+.font-orbitron { font-family: "Orbitron", system-ui, sans-serif; }
+.font-pacifico { font-family: "Pacifico", system-ui, sans-serif; }
+.font-pixel { font-family: "Pixel", system-ui, sans-serif; }
+.font-creepy { font-family: "Creepy", system-ui, sans-serif; }
+
+/* ========= Theme engine (CSS vars) ========= */
+:root {
+  --v3-primary: #16a34a;
+  --v3-secondary: #f59e0b;
+  --v3-surface: rgba(255, 255, 255, 0.78);
+  --v3-radius: 28px;
+  --v3-overlay: 0.35;
+  --v3-font: Bebas;
+}
+
+.v3-font {
+  font-family: var(--v3-font), system-ui, sans-serif;
+}
+/* ========= News Ticker (marquee) ========= */
+.v3-marquee {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.v3-marquee__inner {
+  display: inline-block;
+  padding-left: 100%;
+  animation: v3-marquee 30s linear infinite;
+}
+
+@keyframes v3-marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
