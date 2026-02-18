@@ -269,9 +269,10 @@ export async function fetchScoutPayload(userId: string): Promise<ScoutPayload> {
     userCreatedAt[d.id] = tsToDateLoose(data?.createdAt) ?? new Date(0);
   });
 
- const allUsersIds = Object.keys(userDebts);
-const totalUsers = allUsersIds.length || 1;
+const allUsersIds = Object.keys(userDebts);
+const totalParticipants = allUsersIds.length || 1;
 const targetCreatedAt = userCreatedAt[userId] ?? new Date(0);
+
 
 
   // matches (ordem Android)
@@ -301,11 +302,6 @@ const targetCreatedAt = userCreatedAt[userId] ?? new Date(0);
   .sort((a, b) => (a.deadline!.getTime() - b.deadline!.getTime()));
 
 const finishedMatchesDesc = [...finishedMatchesAsc].reverse();
-const lastDate = finishedMatchesAsc.length ? (finishedMatchesAsc[finishedMatchesAsc.length - 1].deadline || new Date()) : new Date();
-const totalParticipants = finishedMatchesAsc.length
-  ? allUsersIds.filter((u) => (userCreatedAt[u] ?? new Date(0)) <= lastDate).length || 1
-  : totalUsers;
-
 
 
   // guesses index
@@ -335,36 +331,32 @@ guessByUserMatch[`${uid}__${mid}`] = value;
   const rankHistory: number[] = [];
 
   for (const m of finishedMatchesAsc) {
-  const matchDate = m.deadline || new Date();
-
-  // ✅ participantes existentes até o deadline (Android-like)
-  const eligibleUsers = allUsersIds.filter((u) => (userCreatedAt[u] ?? new Date(0)) <= matchDate);
-  const eligibleSet = new Set(eligibleUsers);
-
   const matchGuesses = guessesByMatchId[m.id] || [];
   const pts = String(m.round || "").toLowerCase() === "final" ? 6 : 3;
 
-  const winnerNorm = normalizePickForMatch(m, m.winner || "");
-
-  // dá pontos para quem acertou (somente elegíveis)
-  for (const g of matchGuesses) {
-    if (!eligibleSet.has(g.userId)) continue;
-    const voteNorm = normalizePickForMatch(m, g.raw);
-    if (voteNorm && voteNorm === winnerNorm) simPoints[g.userId] = (simPoints[g.userId] || 0) + pts;
+  // ✅ Android: processa o jogo para TODOS os usuários
+  for (const uid of allUsersIds) {
+    const voteRaw = matchGuesses.find((x) => x.userId === uid)?.raw;
+    if (voteRaw && voteRaw === (m.winner || "")) {
+      simPoints[uid] = (simPoints[uid] || 0) + pts;
+    }
   }
 
-  const currentRankList = [...eligibleUsers].sort((a, b) => {
-    const netA = (simPoints[a] || 0) - (userDebts[a] || 0) * 3;
+  // ✅ Android: ranking usa TODOS os usuários sempre
+  const currentRankList = [...allUsersIds].sort((a, b) => {
+    const netA = (simPoints[a] || 0) - (userDebts[a] || 0) * 3; // Pontos líquidos
     const netB = (simPoints[b] || 0) - (userDebts[b] || 0) * 3;
-    if (netA !== netB) return netB - netA;
+    if (netA !== netB) return netB - netA; // desc
     const dA = userDebts[a] || 0;
     const dB = userDebts[b] || 0;
-    if (dA !== dB) return dA - dB;
-    return String(a).localeCompare(String(b));
+    if (dA !== dB) return dA - dB; // menos débitos ganha
+    return String(a).localeCompare(String(b)); // desempate por ID
   });
 
-  rankHistory.push(currentRankList.indexOf(userId) + 1);
+  const myRank = currentRankList.indexOf(userId);
+  rankHistory.push(myRank >= 0 ? myRank + 1 : 0);
 }
+
 
 
   const bestRank = rankHistory.length ? Math.min(...rankHistory) : 0;
