@@ -1,6 +1,6 @@
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
-import { sortMatchesGlobal, type MatchDoc, type MatchView } from "./contracts";
+import { type MatchDoc, type MatchView } from "./contracts";
 
 type GuessTriple = { matchId: string; userId: string; vote: string };
 
@@ -264,9 +264,12 @@ export async function fetchScoutPayload(userId: string): Promise<ScoutPayload> {
     })
     .filter((m) => !!m.deadline);
 
-  const allMatches = sortMatchesGlobal(rawMatches);
-  const finishedMatchesAsc = allMatches.filter((m) => !!m.winner && !!m.deadline);
-  const finishedMatchesDesc = [...finishedMatchesAsc].reverse();
+  const finishedMatchesAsc = rawMatches
+  .filter((m) => !!m.winner && !!m.deadline)
+  .sort((a, b) => (a.deadline!.getTime() - b.deadline!.getTime()));
+
+const finishedMatchesDesc = [...finishedMatchesAsc].reverse();
+
 
   // guesses index
   const guessesByMatchId: Record<string, GuessTriple[]> = {};
@@ -278,13 +281,14 @@ export async function fetchScoutPayload(userId: string): Promise<ScoutPayload> {
     const mid = String(g?.matchId || "");
     if (!uid || !mid) return;
 
-    const raw = g?.guess ?? g?.teamSelected;
-    if (!raw) return;
+    // ✅ Android usa APENAS teamSelected (nome do time ou "EMPATE")
+const raw = g?.teamSelected;
+if (!raw) return;
 
-    const vote = String(raw);
-    (guessesByMatchId[mid] ||= []).push({ matchId: mid, userId: uid, vote });
-    guessByUserMatch[`${uid}__${mid}`] = vote;
-  });
+const vote = String(raw);
+(guessesByMatchId[mid] ||= []).push({ matchId: mid, userId: uid, vote });
+guessByUserMatch[`${uid}__${mid}`] = vote;
+    });
 
   // ---- A) rankHistory (simulação Android)
   const simPoints: Record<string, number> = {};
