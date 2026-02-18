@@ -55,13 +55,12 @@ function buildNiceTicks(maxRank: number, maxLines = 6) {
 }
 
 function RankChart({ history, totalParticipants }: { history: number[]; totalParticipants: number }) {
-  const total = history.length;
-  const windowSize = 10; // igual ao “29–38” do print (janela final)
-  const window = history.slice(Math.max(0, total - windowSize));
-  const windowLen = window.length;
-  const xStart = Math.max(1, total - windowLen + 1);
+  // ✅ Android: mostra TODAS as rodadas do rankHistory
+  const series = history;
+  const seriesLen = series.length;
+  const xStart = 1;
 
-  if (!windowLen) {
+  if (!seriesLen) {
     return (
       <div className="w-full rounded-2xl bg-white/95 border border-white/20 shadow-xl overflow-hidden">
         <div className="px-4 py-4 text-center text-zinc-600 font-black">Sem dados de ranking ainda.</div>
@@ -69,7 +68,7 @@ function RankChart({ history, totalParticipants }: { history: number[]; totalPar
     );
   }
 
-  const maxRank = Math.max(totalParticipants || 1, ...window, 1);
+  const maxRank = Math.max(totalParticipants || 1, ...series, 1);
   const ticks = buildNiceTicks(maxRank, 6);
 
   // svg geometry
@@ -84,8 +83,8 @@ function RankChart({ history, totalParticipants }: { history: number[]; totalPar
   const innerH = H - padT - padB;
 
   const xs = (i: number) => {
-    if (windowLen <= 1) return padL;
-    return padL + (i * innerW) / (windowLen - 1);
+    if (seriesLen <= 1) return padL;
+    return padL + (i * innerW) / (seriesLen - 1);
   };
 
   const ys = (rank: number) => {
@@ -95,21 +94,21 @@ function RankChart({ history, totalParticipants }: { history: number[]; totalPar
     return padT + t * innerH;
   };
 
-  const points = window.map((r, i) => ({ x: xs(i), y: ys(r), r }));
+  const points = series.map((r, i) => ({ x: xs(i), y: ys(r), r }));
 
   const lineD = points
     .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
     .join(" ");
 
   const areaD =
-    windowLen >= 2
-      ? `${lineD} L ${xs(windowLen - 1).toFixed(2)} ${(padT + innerH).toFixed(2)} L ${xs(0).toFixed(2)} ${(padT + innerH).toFixed(2)} Z`
+    seriesLen >= 2
+      ? `${lineD} L ${xs(seriesLen - 1).toFixed(2)} ${(padT + innerH).toFixed(2)} L ${xs(0).toFixed(2)} ${(padT + innerH).toFixed(2)} Z`
       : "";
 
   const xLabels = (() => {
-    const step = windowLen <= 12 ? 1 : 2;
+    const step = seriesLen <= 12 ? 1 : 2;
     const out: Array<{ j: number; label: number }> = [];
-    for (let j = 0; j < windowLen; j += step) out.push({ j, label: xStart + j });
+    for (let j = 0; j < seriesLen; j += step) out.push({ j, label: xStart + j });
     return out;
   })();
 
@@ -123,7 +122,7 @@ function RankChart({ history, totalParticipants }: { history: number[]; totalPar
         <div className="rounded-2xl bg-white border border-zinc-200 shadow-sm overflow-hidden">
           <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[260px]">
             {/* grid + y labels */}
-            {ticks.map((t) => {
+            {ticks.map((t: number) => {
               const y = ys(t);
               return (
                 <g key={t}>
@@ -180,6 +179,7 @@ function RankChart({ history, totalParticipants }: { history: number[]; totalPar
     </div>
   );
 }
+
 
 function KpiCard({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
