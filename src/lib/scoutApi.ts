@@ -2,7 +2,8 @@ import { collection, getDocs } from "firebase/firestore";
 import { db } from "./firebase";
 import { type MatchDoc, type MatchView } from "./contracts";
 
-type GuessTriple = { matchId: string; userId: string; vote: string };
+type GuessTriple = { matchId: string; userId: string; raw: string };
+
 
 export type CompRow = {
   name: string;
@@ -41,6 +42,25 @@ export type ScoutPayload = {
 
 // ---------- helpers (iguais ao Android)
 
+function normalizePickForMatch(m: MatchView, raw: string): string {
+  const v = String(raw || "").trim();
+
+  // já é texto (teamA/teamB/EMPATE)
+  if (!v) return "";
+
+  const up = v.toUpperCase();
+
+  // empates em formatos comuns
+  if (up === "EMPATE" || up === "DRAW" || up === "X" || up === "D") return "EMPATE";
+
+  // códigos legados
+  if (up === "A") return m.teamA;
+  if (up === "B") return m.teamB;
+
+  // se já vier o próprio nome do time (ou "EMPATE")
+  return v;
+}
+
 function tsToDateLoose(ts: any): Date | null {
   try {
     return ts?.toDate ? ts.toDate() : null;
@@ -65,21 +85,31 @@ function computeConsistencyLabel(rankHistoryAsc: number[]): string {
 function computeRiskLabel(
   finishedMatchesAsc: MatchView[],
   guessesByMatchId: Record<string, GuessTriple[]>,
-  userId: string
+  userId: string,
+  userCreatedAt: Date
 ): string {
   let considered = 0;
   let sumShare = 0;
 
   for (const m of finishedMatchesAsc) {
+    const matchDate = m.deadline || new Date();
+    if (!(userCreatedAt <= matchDate)) continue;
+
     const matchGuesses = guessesByMatchId[m.id] || [];
-    const myVote = matchGuesses.find((g) => g.userId === userId)?.vote;
+    const mineRaw = matchGuesses.find((g) => g.userId === userId)?.raw;
+    if (!mineRaw) continue;
+
+    const myVote = normalizePickForMatch(m, mineRaw);
     if (!myVote) continue;
 
-    const validVotes = matchGuesses.map((g) => g.vote).filter(Boolean);
-    if (!validVotes.length) continue;
+    const normalizedVotes = matchGuesses
+      .map((g) => normalizePickForMatch(m, g.raw))
+      .filter(Boolean);
 
-    const sameCount = validVotes.filter((v) => v === myVote).length;
-    const share = sameCount / validVotes.length;
+    if (!normalizedVotes.length) continue;
+
+    const sameCount = normalizedVotes.filter((v) => v === myVote).length;
+    const share = sameCount / normalizedVotes.length;
 
     sumShare += share;
     considered++;
@@ -94,6 +124,7 @@ function computeRiskLabel(
   if (risk >= 0.25) return "Médio";
   return "Baixo";
 }
+
 
 function filterHistoryOnlyMatches(history: string[]): string[] {
   return history.filter((raw) => {
@@ -238,9 +269,10 @@ export async function fetchScoutPayload(userId: string): Promise<ScoutPayload> {
     userCreatedAt[d.id] = tsToDateLoose(data?.createdAt) ?? new Date(0);
   });
 
-  const allUsersIds = Object.keys(userDebts);
-  const totalParticipants = allUsersIds.length || 1;
-  const targetCreatedAt = userCreatedAt[userId] ?? new Date(0);
+ const allUsersIds = Object.keys(userDebts);
+const totalUsers = allUsersIds.length || 1;
+const targetCreatedAt = userCreatedAt[userId] ?? new Date(0);
+
 
   // matches (ordem Android)
   const rawMatches: MatchView[] = matchesSnap.docs
@@ -269,6 +301,11 @@ export async function fetchScoutPayload(userId: string): Promise<ScoutPayload> {
   .sort((a, b) => (a.deadline!.getTime() - b.deadline!.getTime()));
 
 const finishedMatchesDesc = [...finishedMatchesAsc].reverse();
+const lastDate = finishedMatchesAsc.length ? (finishedMatchesAsc[finishedMatchesAsc.length - 1].deadline || new Date()) : new Date();
+const totalParticipants = finishedMatchesAsc.length
+  ? allUsersIds.filter((u) => (userCreatedAt[u] ?? new Date(0)) <= lastDate).length || 1
+  : totalUsers;
+
 
 
   // guesses index
@@ -282,12 +319,13 @@ const finishedMatchesDesc = [...finishedMatchesAsc].reverse();
     if (!uid || !mid) return;
 
     // ✅ Android usa APENAS teamSelected (nome do time ou "EMPATE")
-const raw = g?.teamSelected;
+const raw = g?.teamSelected ?? g?.guess; // ✅ teamSelected é prioridade (Android)
 if (!raw) return;
 
-const vote = String(raw);
-(guessesByMatchId[mid] ||= []).push({ matchId: mid, userId: uid, vote });
-guessByUserMatch[`${uid}__${mid}`] = vote;
+const value = String(raw);
+(guessesByMatchId[mid] ||= []).push({ matchId: mid, userId: uid, raw: value });
+guessByUserMatch[`${uid}__${mid}`] = value;
+
     });
 
   // ---- A) rankHistory (simulação Android)
@@ -297,26 +335,37 @@ guessByUserMatch[`${uid}__${mid}`] = vote;
   const rankHistory: number[] = [];
 
   for (const m of finishedMatchesAsc) {
-    const matchGuesses = guessesByMatchId[m.id] || [];
-    const pts = String(m.round || "").toLowerCase() === "final" ? 6 : 3;
+  const matchDate = m.deadline || new Date();
 
-    // dá pontos para quem acertou
-    for (const g of matchGuesses) {
-      if (g.vote === m.winner) simPoints[g.userId] = (simPoints[g.userId] || 0) + pts;
-    }
+  // ✅ participantes existentes até o deadline (Android-like)
+  const eligibleUsers = allUsersIds.filter((u) => (userCreatedAt[u] ?? new Date(0)) <= matchDate);
+  const eligibleSet = new Set(eligibleUsers);
 
-    const currentRankList = [...allUsersIds].sort((a, b) => {
-      const netA = (simPoints[a] || 0) - (userDebts[a] || 0) * 3;
-      const netB = (simPoints[b] || 0) - (userDebts[b] || 0) * 3;
-      if (netA !== netB) return netB - netA; // desc
-      const dA = userDebts[a] || 0;
-      const dB = userDebts[b] || 0;
-      if (dA !== dB) return dA - dB; // asc
-      return String(a).localeCompare(String(b));
-    });
+  const matchGuesses = guessesByMatchId[m.id] || [];
+  const pts = String(m.round || "").toLowerCase() === "final" ? 6 : 3;
 
-    rankHistory.push(currentRankList.indexOf(userId) + 1);
+  const winnerNorm = normalizePickForMatch(m, m.winner || "");
+
+  // dá pontos para quem acertou (somente elegíveis)
+  for (const g of matchGuesses) {
+    if (!eligibleSet.has(g.userId)) continue;
+    const voteNorm = normalizePickForMatch(m, g.raw);
+    if (voteNorm && voteNorm === winnerNorm) simPoints[g.userId] = (simPoints[g.userId] || 0) + pts;
   }
+
+  const currentRankList = [...eligibleUsers].sort((a, b) => {
+    const netA = (simPoints[a] || 0) - (userDebts[a] || 0) * 3;
+    const netB = (simPoints[b] || 0) - (userDebts[b] || 0) * 3;
+    if (netA !== netB) return netB - netA;
+    const dA = userDebts[a] || 0;
+    const dB = userDebts[b] || 0;
+    if (dA !== dB) return dA - dB;
+    return String(a).localeCompare(String(b));
+  });
+
+  rankHistory.push(currentRankList.indexOf(userId) + 1);
+}
+
 
   const bestRank = rankHistory.length ? Math.min(...rankHistory) : 0;
   const worstRank = rankHistory.length ? Math.max(...rankHistory) : 0;
@@ -324,14 +373,15 @@ guessByUserMatch[`${uid}__${mid}`] = vote;
   const worstRankCount = worstRank ? rankHistory.filter((x) => x === worstRank).length : 0;
 
   const consistencyText = computeConsistencyLabel(rankHistory);
-  const riskText = computeRiskLabel(finishedMatchesAsc, guessesByMatchId, userId);
+  const riskText = computeRiskLabel(finishedMatchesAsc, guessesByMatchId, userId, targetCreatedAt);
+
 
   // ---- B) histórico (para streak e lastFive) — baseado nos jogos disponíveis para o usuário
   const history: string[] = [];
 
   for (const m of finishedMatchesDesc) {
     const matchDate = m.deadline || new Date();
-    if (!(targetCreatedAt < matchDate)) continue;
+if (!(targetCreatedAt <= matchDate)) continue;
 
     const myVote = guessByUserMatch[`${userId}__${m.id}`];
     if (!myVote) {
@@ -339,8 +389,11 @@ guessByUserMatch[`${uid}__${mid}`] = vote;
       continue;
     }
 
-    const type = myVote === m.winner ? "✅" : "❌";
-    history.push(`${type}|${m.id}|${m.competition}|Voto: ${myVote}|`);
+    const myVoteNorm = normalizePickForMatch(m, myVote);
+const winnerNorm = normalizePickForMatch(m, m.winner || "");
+const type = myVoteNorm !== "" && myVoteNorm === winnerNorm ? "✅" : "❌";
+history.push(`${type}|${m.id}|${m.competition}|Voto: ${myVoteNorm || myVote}|`);
+
   }
 
   const historyOnlyMatches = filterHistoryOnlyMatches(history);
@@ -361,7 +414,7 @@ guessByUserMatch[`${uid}__${mid}`] = vote;
 
   for (const m of finishedMatchesAsc) {
     const matchDate = m.deadline || new Date();
-    if (!(targetCreatedAt < matchDate)) continue;
+if (!(targetCreatedAt <= matchDate)) continue;
 
     totalAvailable++;
 
@@ -369,7 +422,9 @@ guessByUserMatch[`${uid}__${mid}`] = vote;
     if (!myVote) continue;
 
     totalVoted++;
-    const hit = myVote === m.winner;
+const myVoteNorm = normalizePickForMatch(m, myVote);
+const winnerNorm = normalizePickForMatch(m, m.winner || "");
+const hit = myVoteNorm !== "" && myVoteNorm === winnerNorm;
     if (hit) totalHits++;
 
     const key = m.competition || "-";
@@ -412,7 +467,8 @@ guessByUserMatch[`${uid}__${mid}`] = vote;
     consistencyText,
     riskText,
     stats: {
-      confrontos: `${totalVoted}/${finishedMatchesAsc.length}`,
+      confrontos: `${totalVoted}/${totalAvailable}`,
+
       acertos: String(totalHits),
       precisao: fmtPct1(accuracy),
     },
