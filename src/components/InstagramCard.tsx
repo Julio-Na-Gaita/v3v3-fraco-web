@@ -11,7 +11,7 @@ function distinctMedals(medals: string[]) {
   for (const m of medals || []) {
     if (!m) continue;
     if (!out.includes(m)) out.push(m);
-    if (out.length >= 4) break; // ✅ Android mostra poucos ícones
+    if (out.length >= 4) break; // igual Android (mostra poucos ícones)
   }
   return out;
 }
@@ -30,7 +30,7 @@ export default function InstagramCard({
   const photo = toImgSrc(user.photoBase64);
   const medals = distinctMedals(user.medals || []);
 
-  // ✅ Se tiver muita gente, mantém o card “bonito” e ainda inclui o usuário
+  // se tiver muita gente, mantém o card bonito e ainda garante a linha do usuário
   const MAX_ROWS = 7;
   const idxMe = rankingList.findIndex((r) => r.userId === user.userId);
 
@@ -50,7 +50,7 @@ export default function InstagramCard({
       isMe: r.userId === user.userId,
     }));
 
-    // se eu não estiver no top 6, adiciona “...” + minha linha real
+    // se eu não estiver no top 6, adiciona “...” + minha linha
     if (idxMe >= MAX_ROWS - 1) {
       rows.push({ row: null, label: "…", isMe: false, isEllipsis: true });
 
@@ -73,7 +73,7 @@ export default function InstagramCard({
 
   return (
     <div className="w-[360px] h-[640px] rounded-[28px] overflow-hidden shadow-2xl relative">
-      {/* fundo do card */}
+      {/* fundo */}
       <div
         className="absolute inset-0"
         style={{
@@ -81,8 +81,14 @@ export default function InstagramCard({
             "linear-gradient(180deg, rgba(10,80,55,1) 0%, rgba(7,50,38,1) 45%, rgba(0,0,0,1) 100%)",
         }}
       />
-      <div className="absolute inset-0 opacity-[0.14]" style={{ background: "radial-gradient(circle at 30% 20%, #ffffff 0%, transparent 55%)" }} />
-      <div className="absolute inset-0 opacity-[0.10]" style={{ background: "radial-gradient(circle at 70% 55%, #ffffff 0%, transparent 60%)" }} />
+      <div
+        className="absolute inset-0 opacity-[0.14]"
+        style={{ background: "radial-gradient(circle at 30% 20%, #ffffff 0%, transparent 55%)" }}
+      />
+      <div
+        className="absolute inset-0 opacity-[0.10]"
+        style={{ background: "radial-gradient(circle at 70% 55%, #ffffff 0%, transparent 60%)" }}
+      />
 
       <div className="relative h-full p-4 flex flex-col">
         {/* topo */}
