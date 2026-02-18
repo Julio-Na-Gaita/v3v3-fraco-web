@@ -12,7 +12,6 @@ import Login from "./pages/Login";
 import Matches from "./pages/Matches";
 import Ranking from "./pages/Ranking";
 import Profile from "./pages/Profile";
-import Extrato from "./pages/Extrato";
 
 
 function App() {
@@ -50,14 +49,6 @@ function App() {
             </RequireAuth>
           }
         />
-<Route
-  path="/extrato"
-  element={
-    <RequireAuth>
-      <Extrato />
-    </RequireAuth>
-  }
-/>
 
         {/* fallback */}
         <Route path="*" element={<Navigate to="/confrontos" replace />} />

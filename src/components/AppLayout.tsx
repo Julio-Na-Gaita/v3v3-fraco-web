@@ -4,7 +4,6 @@ import { useAppConfig } from "../lib/appConfig";
 import bgHome from "../assets/android/bg/bg_home.png";
 import bgRanking from "../assets/android/bg/bg_ranking.png";
 import bgPerfil from "../assets/android/bg/bg_perfil.png";
-import bgExtrato from "../assets/android/bg/bg_conquistas.png";
 
 
 function NavItem({ to, label }: { to: string; label: string }) {
@@ -38,7 +37,6 @@ const bg =
   pathname.startsWith("/ranking")
     ? (cfg.bgRanking || bgRanking)
     : 
-      pathname.startsWith("/extrato") ? bgExtrato :
     pathname.startsWith("/perfil")
       ? (cfg.bgPerfil || bgPerfil)
       : (cfg.bgHome || bgHome);
@@ -84,7 +82,6 @@ const bg =
               <div className="hidden sm:flex items-center gap-2">
   <NavItem to="/confrontos" label="CONFRONTOS" />
 <NavItem to="/ranking" label="RANKING" />
-<NavItem to="/extrato" label="EXTRATO" />
 <NavItem to="/perfil" label="PERFIL" />
 
 
@@ -106,7 +103,6 @@ const bg =
             <div className="sm:hidden max-w-5xl mx-auto px-4 pb-3 flex gap-2">
               <NavItem to="/confrontos" label="CONFRONTOS" />
 <NavItem to="/ranking" label="RANKING" />
-<NavItem to="/extrato" label="EXTRATO" />
 <NavItem to="/perfil" label="PERFIL" />
 
             </div>
