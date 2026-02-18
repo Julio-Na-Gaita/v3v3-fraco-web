@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import ScoutModal from "./ScoutModal";
+import CompareGuessesModal from "./CompareGuessesModal";
+import { useAuth } from "../lib/auth";
+
 
 
 import bgFoto from "../assets/android/bg/bg_dialog_foto.png";
@@ -62,8 +65,12 @@ type Props = {
 };
 
 export default function UserProfileModal({ userId, displayName, photoBase64, medals, onClose }: Props) {
-    const [toast, setToast] = useState<{ title: string; desc: string } | null>(null);
-const [showScout, setShowScout] = useState(false);
+  const { user } = useAuth();
+
+  const [toast, setToast] = useState<{ title: string; desc: string } | null>(null);
+  const [showScout, setShowScout] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+
 
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(displayName);
@@ -264,18 +271,20 @@ const [showScout, setShowScout] = useState(false);
             <button
   type="button"
   onClick={() => setShowScout(true)}
-  className="w-full rounded-xl bg-emerald-700 text-white font-black py-3"
+  className="w-full rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-black py-3"
 >
   📊 VER ESTATÍSTICAS 📊
 </button>
 
+<button
+  type="button"
+  onClick={() => setShowCompare(true)}
+  className="w-full rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-black py-3 shadow"
+>
+  🆚 COMPARAR PALPITES 🆚
+</button>
 
-            <button
-              onClick={() => setToast({ title: "COMPARAR PALPITES", desc: "No próximo passo a gente implementa igual Android." })}
-              className="w-full rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black py-3 border border-blue-200/30"
-            >
-              🆚 COMPARAR PALPITES 🆚
-            </button>
+
 
             <button
               onClick={() => setToast({ title: "GERAR CARD INSTAGRAM", desc: "No próximo passo a gente implementa a geração do card." })}
@@ -307,6 +316,7 @@ const [showScout, setShowScout] = useState(false);
               </div>
             </div>
           ) : null}
+          
           {showScout && (
   <ScoutModal
     userId={userId}
@@ -314,6 +324,18 @@ const [showScout, setShowScout] = useState(false);
     onClose={() => setShowScout(false)}
   />
 )}
+{showCompare && (
+  <CompareGuessesModal
+    currentUserId={user?.uid || ""}
+currentUserName={user?.name || "Você"}
+    targetUserId={userId}
+    targetUserName={displayName}
+    onClose={() => setShowCompare(false)}
+  />
+)}
+
+
+
           {historyModal ? (
   <MedalHistoryModal
     icon={historyModal.icon}
