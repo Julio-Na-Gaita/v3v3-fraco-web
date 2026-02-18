@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import ScoutModal from "./ScoutModal";
 import CompareGuessesModal from "./CompareGuessesModal";
+import ShareInstagramCardModal from "./ShareInstagramCardModal";
+
 import { useAuth } from "../lib/auth";
 
 
@@ -70,7 +72,7 @@ export default function UserProfileModal({ userId, displayName, photoBase64, med
   const [toast, setToast] = useState<{ title: string; desc: string } | null>(null);
   const [showScout, setShowScout] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
-
+const [showShareCard, setShowShareCard] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(displayName);
@@ -287,11 +289,13 @@ export default function UserProfileModal({ userId, displayName, photoBase64, med
 
 
             <button
-              onClick={() => setToast({ title: "GERAR CARD INSTAGRAM", desc: "No próximo passo a gente implementa a geração do card." })}
-              className="w-full rounded-xl bg-pink-600 hover:bg-pink-500 text-white font-black py-3 border border-pink-200/30"
-            >
-              📸 GERAR CARD INSTAGRAM 📸
-            </button>
+  type="button"
+  onClick={() => setShowShareCard(true)}
+  className="w-full rounded-xl bg-pink-600 hover:bg-pink-500 text-white font-black py-3 border border-pink-200/30"
+>
+  📸 GERAR CARD INSTAGRAM 📸
+</button>
+
 
             <button
               onClick={onClose}
@@ -334,6 +338,12 @@ currentUserName={user?.name || "Você"}
   />
 )}
 
+{showShareCard && (
+  <ShareInstagramCardModal
+    targetUserId={userId}
+    onClose={() => setShowShareCard(false)}
+  />
+)}
 
 
           {historyModal ? (
