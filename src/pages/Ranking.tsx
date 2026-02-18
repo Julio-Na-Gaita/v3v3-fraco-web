@@ -7,6 +7,7 @@ import { fetchRankingPayload, type RankingUserRow, type MonthlyRankingRow } from
 import ExtratoModal from "../components/ExtratoModal";
 import UserProfileModal from "../components/UserProfileModal";
 
+
 function toImgSrc(photoBase64?: string) {
   if (!photoBase64) return null;
   if (photoBase64.startsWith("http") || photoBase64.startsWith("data:image")) return photoBase64;

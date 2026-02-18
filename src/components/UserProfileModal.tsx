@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import ScoutModal from "./ScoutModal";
+
 
 import bgFoto from "../assets/android/bg/bg_dialog_foto.png";
 import MedalHistoryModal from "./MedalHistoryModal";
@@ -61,6 +63,7 @@ type Props = {
 
 export default function UserProfileModal({ userId, displayName, photoBase64, medals, onClose }: Props) {
     const [toast, setToast] = useState<{ title: string; desc: string } | null>(null);
+const [showScout, setShowScout] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(displayName);
@@ -259,11 +262,13 @@ export default function UserProfileModal({ userId, displayName, photoBase64, med
           {/* Botões (layout Android) */}
           <div className="mt-4 space-y-3">
             <button
-              onClick={() => setToast({ title: "VER ESTATÍSTICAS", desc: "No Passo seguinte a gente pareia essa tela igual Android." })}
-              className="w-full rounded-xl bg-black/70 hover:bg-black/80 text-yellow-400 font-black py-3 border border-yellow-400/40"
-            >
-              📊 VER ESTATÍSTICAS 📊
-            </button>
+  type="button"
+  onClick={() => setShowScout(true)}
+  className="w-full rounded-xl bg-emerald-700 text-white font-black py-3"
+>
+  📊 VER ESTATÍSTICAS 📊
+</button>
+
 
             <button
               onClick={() => setToast({ title: "COMPARAR PALPITES", desc: "No próximo passo a gente implementa igual Android." })}
@@ -302,6 +307,13 @@ export default function UserProfileModal({ userId, displayName, photoBase64, med
               </div>
             </div>
           ) : null}
+          {showScout && (
+  <ScoutModal
+    userId={userId}
+    displayName={displayName}
+    onClose={() => setShowScout(false)}
+  />
+)}
           {historyModal ? (
   <MedalHistoryModal
     icon={historyModal.icon}
