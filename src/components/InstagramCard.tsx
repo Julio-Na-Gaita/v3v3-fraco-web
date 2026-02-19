@@ -30,46 +30,55 @@ export default function InstagramCard({
   const photo = toImgSrc(user.photoBase64);
   const medals = distinctMedals(user.medals || []);
 
-  // se tiver muita gente, mantém o card bonito e ainda garante a linha do usuário
-  const MAX_ROWS = 7;
-  const idxMe = rankingList.findIndex((r) => r.userId === user.userId);
+// --- Ranking geral (igual Android): Top 3 + ... + minha posição ---
+const TOP = 3;
+const SHOW_WHEN_IN_TOP = 5; // se eu estiver no top 3/4/5, mostra top 5 inteiro
 
-  let rows: Array<{ row: RankingUserRow | null; label: string; isMe: boolean; isEllipsis?: boolean }> = [];
+const idxMe = rankingList.findIndex((r) => r.userId === user.userId);
 
-  if (rankingList.length <= MAX_ROWS) {
-    rows = rankingList.map((r, i) => ({
+type RankLine =
+  | { kind: "row"; row: RankingUserRow; pos: number; isMe: boolean }
+  | { kind: "ellipsis" };
+
+let rows: RankLine[] = [];
+
+if (!rankingList.length) {
+  rows = [];
+} else if (idxMe === -1) {
+  // fallback: se por algum motivo não achou o usuário, mostra top 3
+  rows = rankingList.slice(0, TOP).map((r, i) => ({
+    kind: "row",
+    row: r,
+    pos: i + 1,
+    isMe: false,
+  }));
+} else if (idxMe < SHOW_WHEN_IN_TOP) {
+  // se eu estiver entre os 5 primeiros, mostra top 5 (sem "...")
+  rows = rankingList.slice(0, Math.min(SHOW_WHEN_IN_TOP, rankingList.length)).map((r, i) => ({
+    kind: "row",
+    row: r,
+    pos: i + 1,
+    isMe: r.userId === user.userId,
+  }));
+} else {
+  // padrão Android: 1º,2º,3º, ..., minha posição
+  rows = [
+    ...rankingList.slice(0, TOP).map((r, i) => ({
+      kind: "row" as const,
       row: r,
-      label: `${i + 1}°`,
+      pos: i + 1,
       isMe: r.userId === user.userId,
-    }));
-  } else {
-    const top = rankingList.slice(0, MAX_ROWS - 1); // 6
-    rows = top.map((r, i) => ({
-      row: r,
-      label: `${i + 1}°`,
-      isMe: r.userId === user.userId,
-    }));
+    })),
+    { kind: "ellipsis" as const },
+    {
+      kind: "row" as const,
+      row: rankingList[idxMe],
+      pos: idxMe + 1,
+      isMe: true,
+    },
+  ];
+}
 
-    // se eu não estiver no top 6, adiciona “...” + minha linha
-    if (idxMe >= MAX_ROWS - 1) {
-      rows.push({ row: null, label: "…", isMe: false, isEllipsis: true });
-
-      const meRow = rankingList[idxMe];
-      rows.push({
-        row: meRow,
-        label: `${idxMe + 1}°`,
-        isMe: true,
-      });
-    } else {
-      // se eu estiver no top 6, mostra o 7º normal
-      const r7 = rankingList[MAX_ROWS - 1];
-      rows.push({
-        row: r7,
-        label: `${MAX_ROWS}°`,
-        isMe: r7.userId === user.userId,
-      });
-    }
-  }
 
   return (
     <div className="w-[360px] h-[640px] rounded-[28px] overflow-hidden shadow-2xl relative">
@@ -132,7 +141,7 @@ export default function InstagramCard({
 
         {/* ranking */}
         <div className="mt-4 rounded-2xl bg-white/95 shadow-xl overflow-hidden flex-1">
-          <div className="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
+          <div className="px-4 py-2 border-b border-zinc-200 flex items-center justify-between">
             <div className="text-zinc-900 font-black text-[14px]">
               RANKING GERAL ({rankingList.length})
             </div>
@@ -141,38 +150,39 @@ export default function InstagramCard({
 
           <div className="divide-y divide-zinc-200">
             {rows.map((it, i) => {
-              if (it.isEllipsis) {
-                return (
-                  <div key={`ellipsis-${i}`} className="px-4 py-2 text-center text-zinc-500 font-black">
-                    …
-                  </div>
-                );
-              }
+  if (it.kind === "ellipsis") {
+    return (
+      <div key={`ellipsis-${i}`} className="px-4 py-2 text-center text-zinc-500 font-black">
+        …
+      </div>
+    );
+  }
 
-              const r = it.row!;
-              const isMe = it.isMe;
-              const posNum = Number(it.label.replace("°", "")) || 0;
+  const r = it.row;
+  const isMe = it.isMe;
+  const posNum = it.pos;
 
-              return (
-                <div
-                  key={r.userId}
-                  className={`px-4 py-3 flex items-center justify-between ${
-                    isMe ? "bg-yellow-200/80" : "bg-transparent"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-8 text-right font-black ${posNum <= 3 ? "text-orange-600" : "text-zinc-900"}`}>
-                      {it.label}
-                    </div>
-                    <div className="font-black text-zinc-900 truncate">{r.displayName}</div>
-                  </div>
+  return (
+    <div
+      key={`${r.userId}-${posNum}`}
+      className={`px-4 py-3 flex items-center justify-between ${
+        isMe ? "bg-yellow-200/80" : "bg-transparent"
+      }`}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <div className={`w-8 text-right font-black ${posNum <= 3 ? "text-orange-600" : "text-zinc-900"}`}>
+          {posNum}°
+        </div>
+        <div className="font-black text-zinc-900 truncate">{r.displayName}</div>
+      </div>
 
-                  <div className={`font-black ${isMe ? "text-emerald-700" : "text-zinc-900"}`}>
-                    {r.points}
-                  </div>
-                </div>
-              );
-            })}
+      <div className={`font-black ${isMe ? "text-emerald-700" : "text-zinc-900"}`}>
+        {r.points}
+      </div>
+    </div>
+  );
+})}
+
           </div>
         </div>
 
