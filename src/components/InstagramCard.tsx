@@ -16,27 +16,6 @@ function distinctMedals(medals: string[]) {
   return out;
 }
 
-function getRowName(row: any) {
-  // tenta campos comuns
-  const candidates = [
-    row?.displayName,
-    row?.name,
-    row?.username,
-    row?.userName,
-    row?.nome,
-  ]
-    .map((x) => (x == null ? "" : String(x).trim()))
-    .filter(Boolean);
-
-  // se o "nome" vier só número, ignora e tenta o próximo
-  for (const c of candidates) {
-    if (!/^\d+([.,]\d+)?$/.test(c)) return c;
-  }
-
-  return String(row?.userId || "—");
-}
-
-
 export default function InstagramCard({
   user,
   rankingList,
@@ -52,72 +31,63 @@ export default function InstagramCard({
   const medals = distinctMedals(user.medals || []);
 
 // --- Ranking geral (100% Android)
-const SHOW_ALL_UP_TO = 7; // <=7: mostra todos
-const TOP = 3;            // top 3 sempre
+const totalParticipants = rankingList.length;
+const maxRows = 7;
 
-const idxMe = rankingList.findIndex((r) => r.userId === user.userId);
+const myIndex = rankingList.findIndex((r) => r.userId === user.userId);
 
 type RankLine =
-  | { kind: "row"; row: RankingUserRow; pos: number; isMe: boolean }
-  | { kind: "ellipsis" };
+  | { kind: "row"; row: RankingUserRow; isMe: boolean }
+  | { kind: "sep" };
 
 let rows: RankLine[] = [];
 
-if (!rankingList.length) {
+if (!totalParticipants) {
   rows = [];
-} else if (rankingList.length <= SHOW_ALL_UP_TO) {
-  // ✅ ranking pequeno: mostra TODOS (igual Android)
-  rows = rankingList.map((r, i) => ({
+} else if (totalParticipants <= maxRows) {
+  // <=7: mostra todos
+  rows = rankingList.map((r) => ({
     kind: "row",
     row: r,
-    pos: i + 1,
     isMe: r.userId === user.userId,
   }));
-} else if (idxMe >= 0) {
-  // ✅ ranking grande: Top 3 + ... + (posição anterior) + (minha posição)
-  // caso especial: se eu estiver em 4º, não faz sentido "..." + 3º + 4º (3º já está no Top 3)
-  if (idxMe <= 3) {
-    // mostra top 5 quando eu estou bem perto do topo
-    rows = rankingList.slice(0, Math.min(5, rankingList.length)).map((r, i) => ({
-      kind: "row",
-      row: r,
-      pos: i + 1,
-      isMe: r.userId === user.userId,
-    }));
-  } else {
-    const prev = idxMe - 1;
-
-    rows = [
-      ...rankingList.slice(0, TOP).map((r, i) => ({
-        kind: "row" as const,
-        row: r,
-        pos: i + 1,
-        isMe: r.userId === user.userId,
-      })),
-      { kind: "ellipsis" as const },
-      {
-        kind: "row" as const,
-        row: rankingList[prev],
-        pos: prev + 1,
-        isMe: false,
-      },
-      {
-        kind: "row" as const,
-        row: rankingList[idxMe],
-        pos: idxMe + 1,
-        isMe: true,
-      },
-    ];
-  }
-} else {
-  // fallback: não achou o usuário (mostra top 5)
-  rows = rankingList.slice(0, Math.min(5, rankingList.length)).map((r, i) => ({
+} else if (myIndex >= 0 && myIndex < maxRows) {
+  // se eu estiver dentro das 7 primeiras posições: mostra top 7 inteiro (SEM "...")
+  rows = rankingList.slice(0, maxRows).map((r) => ({
     kind: "row",
     row: r,
-    pos: i + 1,
+    isMe: r.userId === user.userId,
+  }));
+} else if (myIndex >= 0) {
+  // padrão: top 3 + "..." + (anterior + eu + próximo)
+  const top3 = rankingList.slice(0, 3).map((r) => ({
+    kind: "row" as const,
+    row: r,
+    isMe: r.userId === user.userId,
+  }));
+
+  const start = Math.max(3, myIndex - 1);
+  const end = Math.min(totalParticipants, myIndex + 2); // slice end é exclusivo
+  const neighborhood = rankingList.slice(start, end).map((r) => ({
+    kind: "row" as const,
+    row: r,
+    isMe: r.userId === user.userId,
+  }));
+
+  rows = [...top3, { kind: "sep" as const }, ...neighborhood];
+} else {
+  // fallback: se não achou o usuário, mostra top 7
+  rows = rankingList.slice(0, maxRows).map((r) => ({
+    kind: "row",
+    row: r,
     isMe: false,
   }));
 }
+
+// Android também mostra “... e mais X guerreiros...”
+const shownCount = rows.filter((x) => x.kind === "row").length;
+const remainingCount = Math.max(0, totalParticipants - shownCount);
+
 
 
 
@@ -195,41 +165,52 @@ if (!rankingList.length) {
 
           <div className="divide-y divide-zinc-200">
             {rows.map((it, i) => {
-  if (it.kind === "ellipsis") {
+  if (it.kind === "sep") {
     return (
-      <div key={`ellipsis-${i}`} className="px-4 py-2 text-center text-zinc-500 font-black">
-        …
+      <div key={`sep-${i}`} className="px-4 py-2 text-center text-zinc-500 font-black">
+        ...
       </div>
     );
   }
 
   const r = it.row;
   const isMe = it.isMe;
-  const posNum = it.pos;
+
+  // ✅ Android calcula a posição real procurando no ranking original
+  const realRank = rankingList.findIndex((x) => x.userId === r.userId) + 1;
 
   return (
     <div
-      key={`${r.userId}-${posNum}`}
-className={`px-4 py-2 flex items-center justify-between ${
+      key={`${r.userId}-${realRank}`}
+      className={`px-4 py-2 flex items-center justify-between ${
         isMe ? "bg-yellow-200/80" : "bg-transparent"
       }`}
     >
       <div className="flex items-center gap-3 min-w-0">
-        <div className={`w-8 text-right font-black ${posNum <= 3 ? "text-orange-600" : "text-zinc-900"}`}>
-          {posNum}°
+        <div className={`w-8 text-right font-black ${realRank <= 3 ? "text-orange-600" : "text-zinc-900"}`}>
+          {realRank}°
         </div>
-       <div className="font-black text-[13px] text-zinc-900 truncate">
-  {getRowName(r)}
-</div>
 
+        {/* ✅ nome */}
+        <div className="font-black text-[13px] text-zinc-900 truncate">
+          {r.displayName}
+        </div>
       </div>
 
+      {/* ✅ pontos */}
       <div className={`font-black ${isMe ? "text-emerald-700" : "text-zinc-900"}`}>
         {r.points}
+        {remainingCount > 0 ? (
+  <div className="px-4 py-2 text-center text-[11px] text-emerald-800 font-black">
+    👇 ... e mais {remainingCount} guerreiros na disputa!
+  </div>
+) : null}
+
       </div>
     </div>
   );
 })}
+
 
           </div>
         </div>
