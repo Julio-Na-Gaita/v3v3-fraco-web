@@ -30,9 +30,10 @@ export default function InstagramCard({
   const photo = toImgSrc(user.photoBase64);
   const medals = distinctMedals(user.medals || []);
 
-// --- Ranking geral (igual Android): Top 3 + ... + minha posição ---
-const TOP = 3;
-const SHOW_WHEN_IN_TOP = 5; // se eu estiver no top 3/4/5, mostra top 5 inteiro
+// --- Ranking geral (igual Android)
+const SHOW_ALL_UP_TO = 8;   // até 8 pessoas: mostra tudo (igual print de 7)
+const TOP = 3;              // top 3
+const SHOW_WHEN_IN_TOP = 5; // se eu estiver até o 5º, mostra top 5 inteiro
 
 const idxMe = rankingList.findIndex((r) => r.userId === user.userId);
 
@@ -44,8 +45,16 @@ let rows: RankLine[] = [];
 
 if (!rankingList.length) {
   rows = [];
+} else if (rankingList.length <= SHOW_ALL_UP_TO) {
+  // ✅ ranking pequeno: mostra TODOS (igual Android)
+  rows = rankingList.map((r, i) => ({
+    kind: "row",
+    row: r,
+    pos: i + 1,
+    isMe: r.userId === user.userId,
+  }));
 } else if (idxMe === -1) {
-  // fallback: se por algum motivo não achou o usuário, mostra top 3
+  // fallback: se não achar o user
   rows = rankingList.slice(0, TOP).map((r, i) => ({
     kind: "row",
     row: r,
@@ -53,15 +62,15 @@ if (!rankingList.length) {
     isMe: false,
   }));
 } else if (idxMe < SHOW_WHEN_IN_TOP) {
-  // se eu estiver entre os 5 primeiros, mostra top 5 (sem "...")
-  rows = rankingList.slice(0, Math.min(SHOW_WHEN_IN_TOP, rankingList.length)).map((r, i) => ({
+  // ✅ se eu estiver no top 5, mostra top 5 (sem ...)
+  rows = rankingList.slice(0, SHOW_WHEN_IN_TOP).map((r, i) => ({
     kind: "row",
     row: r,
     pos: i + 1,
     isMe: r.userId === user.userId,
   }));
 } else {
-  // padrão Android: 1º,2º,3º, ..., minha posição
+  // ✅ padrão Android: top 3 + ... + minha posição
   rows = [
     ...rankingList.slice(0, TOP).map((r, i) => ({
       kind: "row" as const,
@@ -78,6 +87,7 @@ if (!rankingList.length) {
     },
   ];
 }
+
 
 
   return (
@@ -140,7 +150,8 @@ if (!rankingList.length) {
         </div>
 
         {/* ranking */}
-        <div className="mt-4 rounded-2xl bg-white/95 shadow-xl overflow-hidden flex-1">
+    <div className="mt-4 rounded-2xl bg-white/95 shadow-xl overflow-hidden h-[290px]">
+
           <div className="px-4 py-2 border-b border-zinc-200 flex items-center justify-between">
             <div className="text-zinc-900 font-black text-[14px]">
               RANKING GERAL ({rankingList.length})
@@ -165,7 +176,7 @@ if (!rankingList.length) {
   return (
     <div
       key={`${r.userId}-${posNum}`}
-      className={`px-4 py-3 flex items-center justify-between ${
+className={`px-4 py-2 flex items-center justify-between ${
         isMe ? "bg-yellow-200/80" : "bg-transparent"
       }`}
     >
@@ -173,7 +184,9 @@ if (!rankingList.length) {
         <div className={`w-8 text-right font-black ${posNum <= 3 ? "text-orange-600" : "text-zinc-900"}`}>
           {posNum}°
         </div>
-        <div className="font-black text-zinc-900 truncate">{r.displayName}</div>
+       <div className={`font-black text-[13px] ${isMe ? "text-emerald-700" : "text-zinc-900"}`}>
+  {r.points}
+</div>
       </div>
 
       <div className={`font-black ${isMe ? "text-emerald-700" : "text-zinc-900"}`}>
