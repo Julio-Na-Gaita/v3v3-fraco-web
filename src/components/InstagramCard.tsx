@@ -16,6 +16,27 @@ function distinctMedals(medals: string[]) {
   return out;
 }
 
+function getRowName(row: any) {
+  // tenta vários campos comuns
+  const candidates = [
+    row?.displayName,
+    row?.name,
+    row?.username,
+    row?.userName,
+    row?.nome,
+  ]
+    .map((x) => (x == null ? "" : String(x).trim()))
+    .filter(Boolean);
+
+  // se o "nome" for só número, tenta o próximo
+  for (const c of candidates) {
+    if (!/^\d+([.,]\d+)?$/.test(c)) return c; // não é só número
+  }
+
+  // se só tiver número mesmo, cai no userId (pra não ficar bizarro)
+  return String(row?.userId || "—");
+}
+
 export default function InstagramCard({
   user,
   rankingList,
@@ -30,10 +51,9 @@ export default function InstagramCard({
   const photo = toImgSrc(user.photoBase64);
   const medals = distinctMedals(user.medals || []);
 
-// --- Ranking geral (igual Android)
-const SHOW_ALL_UP_TO = 8;   // até 8 pessoas: mostra tudo (igual print de 7)
-const TOP = 3;              // top 3
-const SHOW_WHEN_IN_TOP = 5; // se eu estiver até o 5º, mostra top 5 inteiro
+// --- Ranking geral (Android): TOP 3 + "..." + minha posição (ou TOP 5 se eu estiver no TOP)
+const TOP = 3;
+const TOP_WHEN_ME_IN_TOP = 5;
 
 const idxMe = rankingList.findIndex((r) => r.userId === user.userId);
 
@@ -45,34 +65,18 @@ let rows: RankLine[] = [];
 
 if (!rankingList.length) {
   rows = [];
-} else if (rankingList.length <= SHOW_ALL_UP_TO) {
-  // ✅ ranking pequeno: mostra TODOS (igual Android)
-  rows = rankingList.map((r, i) => ({
+} else if (idxMe >= 0 && idxMe < TOP_WHEN_ME_IN_TOP) {
+  // ✅ Se eu estiver no TOP 5, mostra TOP 5 completo (sem "...")
+  rows = rankingList.slice(0, Math.min(TOP_WHEN_ME_IN_TOP, rankingList.length)).map((r, i) => ({
     kind: "row",
     row: r,
     pos: i + 1,
     isMe: r.userId === user.userId,
   }));
-} else if (idxMe === -1) {
-  // fallback: se não achar o user
-  rows = rankingList.slice(0, TOP).map((r, i) => ({
-    kind: "row",
-    row: r,
-    pos: i + 1,
-    isMe: false,
-  }));
-} else if (idxMe < SHOW_WHEN_IN_TOP) {
-  // ✅ se eu estiver no top 5, mostra top 5 (sem ...)
-  rows = rankingList.slice(0, SHOW_WHEN_IN_TOP).map((r, i) => ({
-    kind: "row",
-    row: r,
-    pos: i + 1,
-    isMe: r.userId === user.userId,
-  }));
-} else {
-  // ✅ padrão Android: top 3 + ... + minha posição
+} else if (idxMe >= 0) {
+  // ✅ Padrão: TOP 3 + ... + minha posição
   rows = [
-    ...rankingList.slice(0, TOP).map((r, i) => ({
+    ...rankingList.slice(0, Math.min(TOP, rankingList.length)).map((r, i) => ({
       kind: "row" as const,
       row: r,
       pos: i + 1,
@@ -86,7 +90,16 @@ if (!rankingList.length) {
       isMe: true,
     },
   ];
+} else {
+  // fallback: não achou o user
+  rows = rankingList.slice(0, Math.min(TOP_WHEN_ME_IN_TOP, rankingList.length)).map((r, i) => ({
+    kind: "row",
+    row: r,
+    pos: i + 1,
+    isMe: false,
+  }));
 }
+
 
 
 
@@ -150,7 +163,8 @@ if (!rankingList.length) {
         </div>
 
         {/* ranking */}
-    <div className="mt-4 rounded-2xl bg-white/95 shadow-xl overflow-hidden h-[290px]">
+    <div className="mt-4 rounded-2xl bg-white/95 shadow-xl overflow-hidden">
+
 
           <div className="px-4 py-2 border-b border-zinc-200 flex items-center justify-between">
             <div className="text-zinc-900 font-black text-[14px]">
