@@ -51,9 +51,9 @@ export default function InstagramCard({
   const photo = toImgSrc(user.photoBase64);
   const medals = distinctMedals(user.medals || []);
 
-// --- Ranking geral (Android): TOP 3 + "..." + minha posição (ou TOP 5 se eu estiver no TOP)
-const TOP = 3;
-const TOP_WHEN_ME_IN_TOP = 5;
+// --- Ranking geral (100% Android)
+const SHOW_ALL_UP_TO = 7; // <=7: mostra todos
+const TOP = 3;            // top 3 sempre
 
 const idxMe = rankingList.findIndex((r) => r.userId === user.userId);
 
@@ -65,40 +65,60 @@ let rows: RankLine[] = [];
 
 if (!rankingList.length) {
   rows = [];
-} else if (idxMe >= 0 && idxMe < TOP_WHEN_ME_IN_TOP) {
-  // ✅ Se eu estiver no TOP 5, mostra TOP 5 completo (sem "...")
-  rows = rankingList.slice(0, Math.min(TOP_WHEN_ME_IN_TOP, rankingList.length)).map((r, i) => ({
+} else if (rankingList.length <= SHOW_ALL_UP_TO) {
+  // ✅ ranking pequeno: mostra TODOS (igual Android)
+  rows = rankingList.map((r, i) => ({
     kind: "row",
     row: r,
     pos: i + 1,
     isMe: r.userId === user.userId,
   }));
 } else if (idxMe >= 0) {
-  // ✅ Padrão: TOP 3 + ... + minha posição
-  rows = [
-    ...rankingList.slice(0, Math.min(TOP, rankingList.length)).map((r, i) => ({
-      kind: "row" as const,
+  // ✅ ranking grande: Top 3 + ... + (posição anterior) + (minha posição)
+  // caso especial: se eu estiver em 4º, não faz sentido "..." + 3º + 4º (3º já está no Top 3)
+  if (idxMe <= 3) {
+    // mostra top 5 quando eu estou bem perto do topo
+    rows = rankingList.slice(0, Math.min(5, rankingList.length)).map((r, i) => ({
+      kind: "row",
       row: r,
       pos: i + 1,
       isMe: r.userId === user.userId,
-    })),
-    { kind: "ellipsis" as const },
-    {
-      kind: "row" as const,
-      row: rankingList[idxMe],
-      pos: idxMe + 1,
-      isMe: true,
-    },
-  ];
+    }));
+  } else {
+    const prev = idxMe - 1;
+
+    rows = [
+      ...rankingList.slice(0, TOP).map((r, i) => ({
+        kind: "row" as const,
+        row: r,
+        pos: i + 1,
+        isMe: r.userId === user.userId,
+      })),
+      { kind: "ellipsis" as const },
+      {
+        kind: "row" as const,
+        row: rankingList[prev],
+        pos: prev + 1,
+        isMe: false,
+      },
+      {
+        kind: "row" as const,
+        row: rankingList[idxMe],
+        pos: idxMe + 1,
+        isMe: true,
+      },
+    ];
+  }
 } else {
-  // fallback: não achou o user
-  rows = rankingList.slice(0, Math.min(TOP_WHEN_ME_IN_TOP, rankingList.length)).map((r, i) => ({
+  // fallback: não achou o usuário (mostra top 5)
+  rows = rankingList.slice(0, Math.min(5, rankingList.length)).map((r, i) => ({
     kind: "row",
     row: r,
     pos: i + 1,
     isMe: false,
   }));
 }
+
 
 
 
