@@ -16,26 +16,7 @@ function distinctMedals(medals: string[]) {
   return out;
 }
 
-function getRowName(row: any) {
-  // tenta vários campos comuns
-  const candidates = [
-    row?.displayName,
-    row?.name,
-    row?.username,
-    row?.userName,
-    row?.nome,
-  ]
-    .map((x) => (x == null ? "" : String(x).trim()))
-    .filter(Boolean);
 
-  // se o "nome" for só número, tenta o próximo
-  for (const c of candidates) {
-    if (!/^\d+([.,]\d+)?$/.test(c)) return c; // não é só número
-  }
-
-  // se só tiver número mesmo, cai no userId (pra não ficar bizarro)
-  return String(row?.userId || "—");
-}
 
 export default function InstagramCard({
   user,
