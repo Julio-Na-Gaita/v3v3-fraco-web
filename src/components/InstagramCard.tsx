@@ -16,6 +16,25 @@ function distinctMedals(medals: string[]) {
   return out;
 }
 
+function getRowName(row: any) {
+  // tenta campos comuns
+  const candidates = [
+    row?.displayName,
+    row?.name,
+    row?.username,
+    row?.userName,
+    row?.nome,
+  ]
+    .map((x) => (x == null ? "" : String(x).trim()))
+    .filter(Boolean);
+
+  // se o "nome" vier só número, ignora e tenta o próximo
+  for (const c of candidates) {
+    if (!/^\d+([.,]\d+)?$/.test(c)) return c;
+  }
+
+  return String(row?.userId || "—");
+}
 
 
 export default function InstagramCard({
@@ -179,9 +198,10 @@ className={`px-4 py-2 flex items-center justify-between ${
         <div className={`w-8 text-right font-black ${posNum <= 3 ? "text-orange-600" : "text-zinc-900"}`}>
           {posNum}°
         </div>
-       <div className={`font-black text-[13px] ${isMe ? "text-emerald-700" : "text-zinc-900"}`}>
-  {r.points}
+       <div className="font-black text-[13px] text-zinc-900 truncate">
+  {getRowName(r)}
 </div>
+
       </div>
 
       <div className={`font-black ${isMe ? "text-emerald-700" : "text-zinc-900"}`}>
