@@ -550,10 +550,18 @@ const [openMatch, setOpenMatch] = useState<MatchView | null>(null);
                             <div className="w-14 text-[12px] font-black text-zinc-600">{r.dateStr}</div>
 
                             <div className="flex-1 flex items-center justify-center gap-2">
-                              {r.teamALogo ? <img src={r.teamALogo} className="w-5 h-5 object-contain" alt="" /> : null}
-                              <div className="text-[15px] font-black text-zinc-900">{scoreText}</div>
-                              {r.teamBLogo ? <img src={r.teamBLogo} className="w-5 h-5 object-contain" alt="" /> : null}
-                            </div>
+  {r.teamALogo ? (
+    <img src={r.teamALogo} className="w-5 h-5 object-contain flex-none" alt="" />
+  ) : null}
+
+  <div className="text-[15px] font-black text-zinc-900 whitespace-nowrap tabular-nums">
+    {scoreText}
+  </div>
+
+  {r.teamBLogo ? (
+    <img src={r.teamBLogo} className="w-5 h-5 object-contain flex-none" alt="" />
+  ) : null}
+</div>
 
                             <div className="w-24 flex justify-end">
                               <div className="rounded-xl bg-white/60 border border-black/5 px-2 py-1 flex items-baseline gap-1">

@@ -191,6 +191,18 @@ const isClosed = !!match.winner || (match.deadline ? Date.now() > match.deadline
 const isExpired = match.deadline ? Date.now() > match.deadline.getTime() : false;
 const closedLabel = match.deadlineLabel.startsWith("Encerrado");
 
+const hasScore = typeof match.goalsA === "number" && typeof match.goalsB === "number";
+const isFinal = /final/i.test(match.round ?? "");
+
+const computedWinner =
+  match.winner ??
+  (hasScore
+    ? match.goalsA! > match.goalsB!
+      ? match.teamA
+      : match.goalsB! > match.goalsA!
+        ? match.teamB
+        : "EMPATE"
+    : null);
 // ✅ Android: texto “VOTO: ...” (somente nos disponíveis)
 const myVoteLabel =
   myVote === "A" ? match.teamA :
@@ -312,35 +324,91 @@ const wNotVoted = totalUsers > 0 ? Math.max(0, 100 - wVoted) : 100;
         </div>
 
         {/* Corpo (tiles) */}
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <LogoBox
-            name={match.teamA}
-            logo={match.teamALogo}
-            selected={myVote === "A"}
-            disabled={isClosed}
-            onClick={() => onVoteClick("A")}
-          />
+{isExpired && (hasScore || computedWinner) ? (
+  <div className="mt-4 flex items-center justify-between gap-3">
+    {/* Time A */}
+    <div className="w-[140px] max-w-[40%] rounded-[var(--v3-radius)] p-3 bg-white/85 border-white/50 border shadow-sm backdrop-blur">
+      <div className="w-full aspect-square rounded-[calc(var(--v3-radius)_-_10px)] bg-zinc-100 flex items-center justify-center overflow-hidden">
+        {match.teamALogo ? (
+          <img src={match.teamALogo} alt={match.teamA} className="w-full h-full object-contain" />
+        ) : (
+          <div className="text-zinc-500 font-black text-2xl">
+            {(match.teamA || "?").split(" ").slice(0, 2).map(s => s[0]?.toUpperCase()).join("")}
+          </div>
+        )}
+      </div>
+      <div className="mt-2 text-center font-black text-[28px] leading-none text-zinc-900 tabular-nums">
+        {typeof match.goalsA === "number" ? match.goalsA : "—"}
+      </div>
+    </div>
 
-          <CenterBox
-            allowDraw={match.allowDraw}
-            selected={myVote === "EMPATE"}
-            disabled={isClosed}
-            onClick={() => onVoteClick("EMPATE")}
-          />
+    {/* Centro (RESULTADO/CAMPEÃO) */}
+    <div className="w-[110px] max-w-[28%] rounded-[var(--v3-radius)] p-3 bg-white/75 border border-white/60 backdrop-blur flex flex-col items-center justify-center text-center">
+      <div className="text-[10px] font-black text-zinc-700">
+        {isFinal ? "CAMPEÃO" : "RESULTADO"}
+      </div>
 
-          <LogoBox
-            name={match.teamB}
-            logo={match.teamBLogo}
-            selected={myVote === "B"}
-            disabled={isClosed}
-            onClick={() => onVoteClick("B")}
-          />
+      <div className={["mt-1 text-[18px] font-black leading-5", isFinal ? "text-yellow-700" : "text-emerald-700"].join(" ")}>
+        {computedWinner ?? "—"}
+      </div>
+
+      {hasScore && (
+        <div className="mt-1 text-[11px] font-black text-zinc-500 whitespace-nowrap tabular-nums">
+          {match.goalsA} x {match.goalsB}
         </div>
-        {/* ✅ Android: “VOTO: ...” só quando prazo está aberto */}
-{!isExpired && !!myVoteLabel && (
-  <div className="mt-2 text-center text-xs font-black text-zinc-700">
-    VOTO: <span className="text-green-700">{myVoteLabel}</span>
+      )}
+    </div>
+
+    {/* Time B */}
+    <div className="w-[140px] max-w-[40%] rounded-[var(--v3-radius)] p-3 bg-white/85 border-white/50 border shadow-sm backdrop-blur">
+      <div className="w-full aspect-square rounded-[calc(var(--v3-radius)_-_10px)] bg-zinc-100 flex items-center justify-center overflow-hidden">
+        {match.teamBLogo ? (
+          <img src={match.teamBLogo} alt={match.teamB} className="w-full h-full object-contain" />
+        ) : (
+          <div className="text-zinc-500 font-black text-2xl">
+            {(match.teamB || "?").split(" ").slice(0, 2).map(s => s[0]?.toUpperCase()).join("")}
+          </div>
+        )}
+      </div>
+      <div className="mt-2 text-center font-black text-[28px] leading-none text-zinc-900 tabular-nums">
+        {typeof match.goalsB === "number" ? match.goalsB : "—"}
+      </div>
+    </div>
   </div>
+) : (
+  <>
+    <div className="mt-4 flex items-center justify-between gap-3">
+      <LogoBox
+        name={match.teamA}
+        logo={match.teamALogo}
+        selected={myVote === "A"}
+        disabled={isClosed}
+        onClick={() => onVoteClick("A")}
+      />
+
+      <CenterBox
+        allowDraw={match.allowDraw}
+        selected={myVote === "EMPATE"}
+        disabled={isClosed}
+        onClick={() => onVoteClick("EMPATE")}
+      />
+
+      <LogoBox
+        name={match.teamB}
+        logo={match.teamBLogo}
+        selected={myVote === "B"}
+        disabled={isClosed}
+        onClick={() => onVoteClick("B")}
+      />
+    </div>
+
+    {/* ✅ Android: “VOTO: ...” só quando prazo está aberto */}
+    {!isExpired && !!myVoteLabel && (
+      <div className="mt-2 text-center text-xs font-black text-zinc-700">
+        VOTO: <span className="text-green-700">{myVoteLabel}</span>
+      </div>
+    )}
+  </>
 )}
 
 {/* ✅ EXTRAS (igual Android) */}
