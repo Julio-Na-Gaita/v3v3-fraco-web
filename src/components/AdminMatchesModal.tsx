@@ -4,7 +4,7 @@ import bgAdmin from "../assets/android/bg/bg_painel_admin.jpeg";
 import { subscribeMatches } from "../lib/bolaoApi";
 import type { MatchView } from "../lib/contracts";
 import MatchEditorModal from "./MatchEditorModal";
-
+import MatchResultModal from "./MatchResultModal";
 export default function AdminMatchesModal({ onClose }: { onClose: () => void }) {
   const [matches, setMatches] = useState<MatchView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +13,8 @@ export default function AdminMatchesModal({ onClose }: { onClose: () => void }) 
   const [showEditor, setShowEditor] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [editing, setEditing] = useState<MatchView | null>(null);
-
+const [showResult, setShowResult] = useState(false);
+const [resultMatch, setResultMatch] = useState<MatchView | null>(null);
   useEffect(() => {
     const unsub = subscribeMatches(
       (list) => {
@@ -50,6 +51,10 @@ export default function AdminMatchesModal({ onClose }: { onClose: () => void }) 
     setShowEditor(true);
   }
 
+function openResult(m: MatchView) {
+  setResultMatch(m);
+  setShowResult(true);
+}
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
@@ -113,13 +118,23 @@ export default function AdminMatchesModal({ onClose }: { onClose: () => void }) 
                   </div>
                 </div>
 
-                <button
-                  onClick={() => openEdit(m)}
-                  className="flex-none px-3 py-2 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-zinc-100 font-black transition inline-flex items-center gap-2"
-                  title="Editar"
-                >
-                  <Pencil size={16} /> EDITAR
-                </button>
+                <div className="flex items-center gap-2">
+  <button
+    onClick={() => openResult(m)}
+    className="flex-none px-3 py-2 rounded-2xl bg-emerald-600/70 hover:bg-emerald-600 border border-emerald-500/30 text-white font-black transition"
+    title="Marcar resultado"
+  >
+    RESULTADO
+  </button>
+
+  <button
+    onClick={() => openEdit(m)}
+    className="flex-none px-3 py-2 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 text-zinc-100 font-black transition inline-flex items-center gap-2"
+    title="Editar"
+  >
+    <Pencil size={16} /> EDITAR
+  </button>
+</div>
               </div>
             ))}
 
@@ -142,6 +157,15 @@ export default function AdminMatchesModal({ onClose }: { onClose: () => void }) 
           }}
         />
       )}
+      {showResult && resultMatch && (
+  <MatchResultModal
+    match={resultMatch}
+    onClose={() => setShowResult(false)}
+    onDone={() => {
+      setShowResult(false);
+    }}
+  />
+)}
     </div>
   );
 }

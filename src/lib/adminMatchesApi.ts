@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  deleteField,
   getDoc,
   getDocs,
   increment,
@@ -127,4 +128,34 @@ export async function createMatch(payload: {
 export async function updateMatch(matchId: string, patch: Record<string, any>) {
   await updateDoc(doc(db, "matches", matchId), patch);
   await touchAppState("match_updated");
+}
+export async function setMatchResult(matchId: string, payload: {
+  goalsA: number;
+  goalsB: number;
+  winner: string;      // teamA | teamB | "EMPATE"
+  qualifier?: string | null; // teamA | teamB | null
+}) {
+  const patch: Record<string, any> = {
+    goalsA: payload.goalsA,
+    goalsB: payload.goalsB,
+    winner: payload.winner,
+  };
+
+  if (payload.qualifier) patch.qualifier = payload.qualifier;
+  else patch.qualifier = deleteField();
+
+  await updateDoc(doc(db, "matches", matchId), patch);
+  await touchAppState("match_result_set");
+}
+
+export async function clearMatchResult(matchId: string) {
+  const patch: Record<string, any> = {
+    goalsA: deleteField(),
+    goalsB: deleteField(),
+    winner: deleteField(),
+    qualifier: deleteField(),
+  };
+
+  await updateDoc(doc(db, "matches", matchId), patch);
+  await touchAppState("match_result_cleared");
 }
