@@ -24,7 +24,7 @@ export type MatchDoc = {
   teamBUrl?: string;
   round?: string;
   competition?: string;
-  deadline?: Timestamp | null;
+  deadline: Timestamp | Date;
   winner?: string | null;
   finishedAt?: Timestamp | null;
   allowDraw?: boolean;

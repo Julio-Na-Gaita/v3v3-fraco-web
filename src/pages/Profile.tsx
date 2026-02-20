@@ -1,7 +1,10 @@
 import AppLayout from "../components/AppLayout";
 import { useTheme } from "../lib/ThemeProvider";
 import { THEMES } from "../lib/theme";
-
+import { useState } from "react";
+import { Shield } from "lucide-react";
+import { useAuth } from "../lib/auth";
+import AdminMatchesModal from "../components/AdminMatchesModal";
 function ThemePicker() {
   const { theme, setThemeId } = useTheme();
 
@@ -69,6 +72,9 @@ function ThemePicker() {
 }
 
 export default function Profile() {
+  const { user } = useAuth();
+  const [showAdmin, setShowAdmin] = useState(false);
+
   return (
     <AppLayout>
       <div className="flex items-end justify-between mb-4">
@@ -78,9 +84,21 @@ export default function Profile() {
             Ajustes do app (tema, fonte e experiência)
           </p>
         </div>
+
+        {user?.isAdmin && (
+          <button
+            onClick={() => setShowAdmin(true)}
+            className="px-4 py-3 rounded-2xl bg-emerald-600/90 hover:bg-emerald-600 text-white font-black border border-emerald-500/30 transition inline-flex items-center gap-2"
+            title="Painel Admin"
+          >
+            <Shield size={18} /> PAINEL ADMIN
+          </button>
+        )}
       </div>
 
       <ThemePicker />
+
+      {showAdmin && <AdminMatchesModal onClose={() => setShowAdmin(false)} />}
     </AppLayout>
   );
 }
