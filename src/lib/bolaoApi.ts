@@ -86,13 +86,12 @@ export function subscribeMatches(
   onMatches: (list: MatchView[]) => void,
   onError?: (err: unknown) => void
 ) {
-  const q = query(collection(db, "matches"), orderBy("deadline", "asc"), limit(50));
+  const q = query(collection(db, "matches"), orderBy("deadline", "asc"));
 
   return onSnapshot(
     q,
     (snap) => {
       const raw = snap.docs.map((d) => mapMatchDoc(d.id, d.data() as MatchDoc));
-
       // ✅ numeração/ordem igual Android: deadline → createdAt → id
       const sorted = sortMatchesGlobal(raw);
 
