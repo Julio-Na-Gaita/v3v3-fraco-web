@@ -4,7 +4,8 @@ import { THEMES } from "../lib/theme";
 import { useState } from "react";
 import { Shield } from "lucide-react";
 import { useAuth } from "../lib/auth";
-import AdminMatchesModal from "../components/AdminMatchesModal";
+import AdminPanelModal from "../components/AdminPanelModal";
+
 function ThemePicker() {
   const { theme, setThemeId } = useTheme();
 
@@ -98,7 +99,7 @@ export default function Profile() {
 
       <ThemePicker />
 
-      {showAdmin && <AdminMatchesModal onClose={() => setShowAdmin(false)} />}
+      {showAdmin && <AdminPanelModal onClose={() => setShowAdmin(false)} />}
     </AppLayout>
   );
 }
