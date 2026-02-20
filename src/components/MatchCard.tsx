@@ -97,13 +97,12 @@ function CenterBox({
 }) {
   // quando NÃO permite empate, é só um “X” decorativo como no mata-mata
   if (!allowDraw) {
-    return (
-      <div className="w-[110px] max-w-[28%] rounded-[var(--v3-radius)] p-3 bg-white/60 border border-white/50 backdrop-blur flex flex-col items-center justify-center">
-
-        <div className="text-zinc-400 font-black text-4xl leading-none">X</div>
-      </div>
-    );
-  }
+  return (
+    <div className="w-[110px] max-w-[28%] rounded-[var(--v3-radius)] p-3 bg-white/75 border border-white/60 backdrop-blur flex flex-col items-center justify-center text-center">
+      <div className="text-zinc-400 font-black text-4xl leading-none">X</div>
+    </div>
+  );
+}
 
   return (
     <button
@@ -180,6 +179,7 @@ useEffect(() => {
     (t) => setThermo(t),
     (err) => console.error(err)
   );
+  
   return () => unsub();
 }, [match.id]);
 
@@ -225,6 +225,18 @@ const computedWinner =
         ? match.teamB
         : "EMPATE"
     : null);
+    const norm = (s: unknown) => String(s ?? "").trim().toLowerCase();
+
+const winnerSide: "A" | "B" | "D" | null = (() => {
+  if (!computedWinner) return null;
+
+  const cw = norm(computedWinner);
+  if (cw === "empate") return "D";
+  if (cw === norm(match.teamA)) return "A";
+  if (cw === norm(match.teamB)) return "B";
+  return null;
+})();
+
 // ✅ Android: texto “VOTO: ...” (somente nos disponíveis)
 const myVoteLabel =
   myVote === "A" ? match.teamA :
@@ -370,7 +382,13 @@ const showB = votesB > 0;
 {isExpired && (hasScore || computedWinner) ? (
   <div className="mt-4 flex items-center justify-between gap-3">
     {/* Time A */}
-    <div className="w-[140px] max-w-[40%] rounded-[var(--v3-radius)] p-3 bg-white/85 border-white/50 border shadow-sm backdrop-blur">
+    <div
+  className={[
+    "w-[140px] max-w-[40%] rounded-[var(--v3-radius)] p-3 bg-white/85 border border-white/50 shadow-sm backdrop-blur transition",
+    winnerSide === "A" ? "ring-2 ring-emerald-500/40" : "",
+    winnerSide === "B" ? "opacity-60" : "",
+  ].join(" ")}
+>
       <div className="w-full aspect-square rounded-[calc(var(--v3-radius)_-_10px)] bg-zinc-100 flex items-center justify-center overflow-hidden">
         {match.teamALogo ? (
           <img src={match.teamALogo} alt={match.teamA} className="w-full h-full object-contain" />
@@ -386,14 +404,34 @@ const showB = votesB > 0;
     </div>
 
     {/* Centro (RESULTADO/CAMPEÃO) */}
-    <div className="w-[110px] max-w-[28%] rounded-[var(--v3-radius)] p-3 bg-white/75 border border-white/60 backdrop-blur flex flex-col items-center justify-center text-center">
+    <div
+  className={[
+    "w-[110px] max-w-[28%] rounded-[var(--v3-radius)] p-3 border backdrop-blur flex flex-col items-center justify-center text-center transition",
+    winnerSide === "A"
+      ? "bg-emerald-600/10 border-emerald-600/25"
+      : winnerSide === "B"
+        ? "bg-red-600/10 border-red-600/25"
+        : "bg-zinc-600/10 border-white/60",
+  ].join(" ")}
+>
       <div className="text-[10px] font-black text-zinc-700">
         {isFinal ? "CAMPEÃO" : "RESULTADO"}
       </div>
 
-      <div className={["mt-1 text-[18px] font-black leading-5", isFinal ? "text-yellow-700" : "text-emerald-700"].join(" ")}>
-        {computedWinner ?? "—"}
-      </div>
+      <div
+  className={[
+    "mt-1 text-[18px] font-black leading-5",
+    isFinal
+      ? "text-yellow-700"
+      : winnerSide === "B"
+        ? "text-red-700"
+        : winnerSide === "D"
+          ? "text-zinc-700"
+          : "text-emerald-700",
+  ].join(" ")}
+>
+  {computedWinner ?? "—"}
+</div>
 
       {hasScore && (
         <div className="mt-1 text-[11px] font-black text-zinc-500 whitespace-nowrap tabular-nums">
@@ -403,7 +441,13 @@ const showB = votesB > 0;
     </div>
 
     {/* Time B */}
-    <div className="w-[140px] max-w-[40%] rounded-[var(--v3-radius)] p-3 bg-white/85 border-white/50 border shadow-sm backdrop-blur">
+    <div
+  className={[
+    "w-[140px] max-w-[40%] rounded-[var(--v3-radius)] p-3 bg-white/85 border border-white/50 shadow-sm backdrop-blur transition",
+    winnerSide === "B" ? "ring-2 ring-red-500/40" : "",
+    winnerSide === "A" ? "opacity-60" : "",
+  ].join(" ")}
+>
       <div className="w-full aspect-square rounded-[calc(var(--v3-radius)_-_10px)] bg-zinc-100 flex items-center justify-center overflow-hidden">
         {match.teamBLogo ? (
           <img src={match.teamBLogo} alt={match.teamB} className="w-full h-full object-contain" />
