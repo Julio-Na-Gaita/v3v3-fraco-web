@@ -17,7 +17,7 @@ import {
 
 import { subscribeMatches } from "../lib/bolaoApi";
 import type { MatchView } from "../lib/contracts";
-
+import AdminQuickCloseModal from "./AdminQuickCloseModal";
 import MatchEditorModal from "./MatchEditorModal";
 import MatchResultModal from "./MatchResultModal";
 
@@ -64,7 +64,7 @@ export default function AdminPanelModal({ onClose }: { onClose: () => void }) {
 
   const [tab, setTab] = useState<Tab>("ABERTOS");
   const [q, setQ] = useState("");
-
+const [showQuickClose, setShowQuickClose] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [editing, setEditing] = useState<MatchView | null>(null);
@@ -111,8 +111,14 @@ export default function AdminPanelModal({ onClose }: { onClose: () => void }) {
       return exp && fin; // FINALIZADOS
     });
 
-    // 2) ordena por #ID (igual Android)
-    base = base.sort((a, b) => (a.matchNumber ?? 0) - (b.matchNumber ?? 0));
+    // 2) ordena por #ID
+// - Abertos/Aguardando: menor -> maior
+// - Finalizados: maior -> menor (como você pediu)
+base = base.sort((a, b) => {
+  const an = a.matchNumber ?? 0;
+  const bn = b.matchNumber ?? 0;
+  return tab === "FINALIZADOS" ? bn - an : an - bn;
+});
 
     // 3) busca
     if (!s) return base;
@@ -204,7 +210,12 @@ export default function AdminPanelModal({ onClose }: { onClose: () => void }) {
             <AdminTile icon={Plus} title="Novo Confronto" className="bg-blue-600/90" onClick={openCreate} />
             <AdminTile icon={Trash2} title="Lixeira" className="bg-zinc-700/90" onClick={() => soon("Lixeira")} />
 
-            <AdminTile icon={CheckCircle2} title="Baixa Rápida" className="bg-emerald-700/90" onClick={() => soon("Baixa rápida")} />
+            <AdminTile
+  icon={CheckCircle2}
+  title="Baixa Rápida"
+  className="bg-emerald-700/90"
+  onClick={() => setShowQuickClose(true)}
+/>
             <AdminTile icon={Trash2} title="Limpar Finalizados" className="bg-red-600/90" onClick={() => soon("Limpar finalizados")} />
 
             <AdminTile icon={ClipboardList} title="Rodadas" className="bg-amber-800/90" onClick={() => soon("Rodadas")} />
@@ -348,7 +359,21 @@ export default function AdminPanelModal({ onClose }: { onClose: () => void }) {
             onDone={() => setShowEditor(false)}
           />
         )}
-
+{showQuickClose && (
+  <AdminQuickCloseModal
+    matches={matches}
+    onClose={() => setShowQuickClose(false)}
+    onOpenResult={(m) => {
+      setResultMatch(m);
+      setShowResult(true);
+    }}
+    onOpenEdit={(m) => {
+      setEditorMode("edit");
+      setEditing(m);
+      setShowEditor(true);
+    }}
+  />
+)}
         {showResult && resultMatch && (
           <MatchResultModal
             match={resultMatch}
