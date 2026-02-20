@@ -99,8 +99,14 @@ export type MatchView = {
 };
 
 // --- Helpers ---
-export function tsToDate(ts?: Timestamp | null): Date | null {
-  return ts ? ts.toDate() : null;
+export function tsToDate(ts?: Timestamp | Date | null) {
+  if (!ts) return null;
+
+  // ✅ se já for Date, retorna direto
+  if (ts instanceof Date) return ts;
+
+  // ✅ se for Timestamp (Firestore), converte
+  return ts.toDate();
 }
 
 /**
