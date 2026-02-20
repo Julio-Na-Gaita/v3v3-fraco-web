@@ -131,6 +131,28 @@ className={[
   );
 }
 
+function isKnockoutRound(round: string) {
+  const r = (round ?? "").trim().toLowerCase();
+  const isLeague = r.includes("pontos corridos");
+  const isGroups = r.includes("fase de grupos");
+  return !(isLeague || isGroups);
+}
+
+function LegTypeChip({ text }: { text: string }) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full border px-2 py-[2px] text-[10px] font-black whitespace-nowrap"
+      style={{
+        color: "var(--v3-primary)",
+        borderColor: "color-mix(in srgb, var(--v3-primary) 28%, transparent)",
+        background: "color-mix(in srgb, var(--v3-primary) 12%, transparent)",
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
 export default function MatchCard({
   match,
   myVote,
@@ -245,8 +267,11 @@ const wNotVoted = totalUsers > 0 ? Math.max(0, 100 - wVoted) : 100;
   const wA = totalUsers > 0 ? (votesA / totalUsers) * 100 : 0;
   const wD = totalUsers > 0 ? (votesD / totalUsers) * 100 : 0;
   const wB = totalUsers > 0 ? (votesB / totalUsers) * 100 : 0;
-  const wN = totalUsers > 0 ? Math.max(0, 100 - (wA + wD + wB)) : 100;
-
+  const wN = totalUsers > 0 ? (faltosos / totalUsers) * 100 : 100;
+const showA = votesA > 0;
+const showD = match.allowDraw && votesD > 0;
+const showN = faltosos > 0;
+const showB = votesB > 0;
   // ✅ helper para extras (evita repetição e divide-by-zero)
   const pct = (n: number) => (totalUsers > 0 ? Math.round((n / totalUsers) * 100) : 0);
 
@@ -270,7 +295,25 @@ const wNotVoted = totalUsers > 0 ? Math.max(0, 100 - wVoted) : 100;
 </div>
 
 
-            <div className="text-zinc-500 font-bold text-xs mt-1">{match.round}</div>
+            {(() => {
+  const legLabel =
+    match.legType === "IDA"
+      ? "IDA"
+      : match.legType === "VOLTA"
+        ? "VOLTA"
+        : match.legType === "UNICO"
+          ? "JOGO ÚNICO"
+          : "";
+
+  const showLeg = isKnockoutRound(match.round) && !!legLabel;
+
+  return (
+    <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs mt-1">
+      <span>{match.round}</span>
+      {showLeg && <LegTypeChip text={legLabel} />}
+    </div>
+  );
+})()}
             <div
   className={[
     "font-black text-sm mt-2",
@@ -551,30 +594,32 @@ const wNotVoted = totalUsers > 0 ? Math.max(0, 100 - wVoted) : 100;
     </div>
 
     {/* Barra principal: Verde / (Empate) / Cinza / Vermelho */}
-    <div className="mt-2 h-3 rounded-full overflow-hidden bg-zinc-200 border border-white/60">
-      <div className="h-full flex">
-        <div style={{ width: `${wA}%` }} className="bg-green-700" />
+    <div className="mt-2 h-[10px] rounded-[5px] overflow-hidden bg-zinc-200">
+  <div className="h-full flex w-full">
+    {showA && <div style={{ width: `${wA}%` }} className="bg-green-700" />}
+    {showA && (showD || showN || showB) && <div className="w-px bg-white/90" />}
 
-        {/* empate (se existir) */}
-        {match.allowDraw && <div style={{ width: `${wD}%` }} className="bg-zinc-500" />}
+    {showD && <div style={{ width: `${wD}%` }} className="bg-zinc-700" />}
+    {showD && (showN || showB) && <div className="w-px bg-white/90" />}
 
-        {/* cinza = não votou */}
-        <div style={{ width: `${wN}%` }} className="bg-zinc-300" />
+    {showN && <div style={{ width: `${wN}%` }} className="bg-zinc-300" />}
+    {showN && showB && <div className="w-px bg-white/90" />}
 
-        <div style={{ width: `${wB}%` }} className="bg-red-600" />
-      </div>
-    </div>
+    {showB && <div style={{ width: `${wB}%` }} className="bg-red-600" />}
+  </div>
+</div>
 
     {/* Contagens (como no Android) */}
-    <div className="mt-2 text-[11px] text-zinc-600 flex items-center justify-between">
-      <span>{match.teamA}: {votesA}</span>
-      {match.allowDraw ? <span>Empate: {votesD}</span> : <span />}
-      <span>{match.teamB}: {votesB}</span>
-    </div>
+    <div className="mt-2 text-[11px] text-zinc-600 flex items-start justify-between">
+  <span>{match.teamA}: {votesA}</span>
 
-    <div className="mt-1 text-[11px] text-zinc-600 text-center">
-      Faltosos: {faltosos}
-    </div>
+  <div className="text-center leading-tight">
+    {match.allowDraw && <div>Empate: {votesD}</div>}
+    {faltosos > 0 && <div className="font-black">Faltosos: {faltosos}</div>}
+  </div>
+
+  <span>{match.teamB}: {votesB}</span>
+</div>
 
     {/* ✅ EXTRAS (layout Android) — SÓ após expirar */}
     <div className="mt-4 rounded-3xl bg-white/70 border border-white/60 p-4">
