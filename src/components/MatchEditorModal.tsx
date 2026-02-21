@@ -63,7 +63,11 @@ export default function MatchEditorModal({
 
   const [allowDraw, setAllowDraw] = useState<boolean>(initial?.allowDraw ?? true);
   const [legType, setLegType] = useState<LegType>((initial?.legType ?? "") as LegType);
+const [showImageLinks, setShowImageLinks] = useState(false);
 
+// (visual) botões "Whats" e "Push" (por enquanto só UI)
+const [notifyWhats, setNotifyWhats] = useState(false);
+const [notifyPush, setNotifyPush] = useState(false);
   const askQualifier = useMemo(() => isKnockoutRound(round) && legAsksQualifier(legType), [round, legType]);
 
   const [compList, setCompList] = useState<string[]>([]);
@@ -101,120 +105,136 @@ export default function MatchEditorModal({
     if (which === "B" && !teamBUrl) setTeamBUrl(found);
   }
 
-  async function onSave() {
-    setToast(null);
+async function onSave(behavior: "close" | "plusOne") {
+  setToast(null);
 
-    const a = normTeamName(teamA);
-    const b = normTeamName(teamB);
+  const a = normTeamName(teamA);
+  const b = normTeamName(teamB);
 
-    if (!a || !b) return setToast("Preencha os times A e B.");
-    if (!competition.trim()) return setToast("Selecione/Preencha a competição.");
-    if (!round.trim()) return setToast("Selecione/Preencha a rodada.");
-    if (!(deadline instanceof Date) || isNaN(deadline.getTime())) return setToast("Prazo inválido.");
+  if (!a || !b) return setToast("Preencha os times A e B.");
+  if (!competition.trim()) return setToast("Selecione/Preencha a competição.");
+  if (!round.trim()) return setToast("Selecione/Preencha a fase.");
+  if (!(deadline instanceof Date) || isNaN(deadline.getTime())) return setToast("Data/Hora inválida.");
 
-    const urlA = driveToDirect(teamAUrl);
-    const urlB = driveToDirect(teamBUrl);
+  const urlA = driveToDirect(teamAUrl);
+  const urlB = driveToDirect(teamBUrl);
 
-    setSaving(true);
-    try {
-      if (mode === "create") {
-        await createMatch({
-          teamA: a,
-          teamB: b,
-          teamAUrl: urlA,
-          teamBUrl: urlB,
-          competition: competition.trim(),
-          round: round.trim(),
-          deadline,
-          allowDraw,
-          legType,
-          askQualifier,
-        });
-      } else {
-        if (!initial?.id) throw new Error("ID do confronto ausente.");
+  setSaving(true);
+  try {
+    if (mode === "create") {
+      await createMatch({
+        teamA: a,
+        teamB: b,
+        teamAUrl: urlA,
+        teamBUrl: urlB,
+        competition: competition.trim(),
+        round: round.trim(),
+        deadline,
+        allowDraw,
+        legType,
+        askQualifier,
 
-        const patch: Record<string, any> = {
-          teamA: a,
-          teamB: b,
-          teamAUrl: urlA,
-          teamBUrl: urlB,
-          teamALogo: urlA,
-          teamBLogo: urlB,
-          competition: competition.trim(),
-          round: round.trim(),
-          deadline,
-          allowDraw,
-          legType,
-          askQualifier,
-        };
+        // apenas UI por enquanto (mas já deixa pronto pro futuro)
+        notifyWhats,
+        notifyPush,
+      } as any);
 
-        // igual Android: se não perguntar classificado, limpa o campo
-        if (!askQualifier) patch.qualifier = deleteField();
-
-        await updateMatch(initial.id, patch);
+      if (behavior === "plusOne") {
+        // ✅ Android-like: mantém competição/fase e o resto, limpa times
+        setTeamA("");
+        setTeamB("");
+        setTeamAUrl("");
+        setTeamBUrl("");
+        setShowImageLinks(false);
+        setToast("✅ Salvo! Pode cadastrar o próximo.");
+        return;
       }
 
       onDone();
-    } catch (e: any) {
-      console.error(e);
-      setToast(e?.message ?? "Erro ao salvar (verifique rules/permissões).");
-    } finally {
-      setSaving(false);
+      return;
     }
+
+    // edit
+    if (!initial?.id) throw new Error("ID do confronto ausente.");
+
+    const patch: Record<string, any> = {
+      teamA: a,
+      teamB: b,
+      teamAUrl: urlA,
+      teamBUrl: urlB,
+      teamALogo: urlA,
+      teamBLogo: urlB,
+      competition: competition.trim(),
+      round: round.trim(),
+      deadline,
+      allowDraw,
+      legType,
+      askQualifier,
+
+      notifyWhats,
+      notifyPush,
+    };
+
+    // igual Android: se não perguntar classificado, limpa
+    if (!askQualifier) patch.qualifier = deleteField();
+
+    await updateMatch(initial.id, patch);
+    onDone();
+  } catch (e: any) {
+    console.error(e);
+    setToast(e?.message ?? "Erro ao salvar.");
+  } finally {
+    setSaving(false);
   }
+}
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-zinc-950/95 p-5 shadow-2xl">
+    {/* Card principal (branco, Android-like) */}
+    <div className="relative w-full max-w-lg rounded-[28px] bg-white shadow-2xl overflow-hidden">
+      {/* Topo roxo (fundo) + título verde */}
+      <div className="px-5 pt-5 pb-3 bg-[color:var(--v3-primary)]/85">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <div className="text-xl font-black tracking-wide text-zinc-100">
-              {mode === "create" ? "➕ Novo Confronto" : "✏️ Editar Confronto"}
-            </div>
-            {mode === "edit" && (
-              <div className="text-zinc-400 text-sm mt-1">
-                #{initial?.matchNumber ?? "?"} • {initial?.teamA} x {initial?.teamB}
-              </div>
-            )}
-
-            <div className="mt-2 text-xs font-black text-zinc-400">
-              Classificado:{" "}
-              <span className={askQualifier ? "text-emerald-400" : "text-zinc-400"}>
-                {askQualifier ? "SIM" : "NÃO"}
-              </span>
-              {isKnockoutRound(round) && (
-                <span className="ml-2 text-zinc-500">(mata-mata detectado)</span>
-              )}
+          <div className="text-white">
+            <div className="text-[20px] font-black tracking-wide">
+              {mode === "create" ? "NOVO CONFRONTO ⚽" : "EDITAR CONFRONTO ⚽"}
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-zinc-200 font-black hover:bg-white/10 transition"
+            className="w-10 h-10 rounded-2xl bg-white/20 border border-white/25 text-white font-black hover:bg-white/30 transition"
+            title="Fechar"
           >
-            FECHAR
+            ✕
           </button>
         </div>
+      </div>
 
+      {/* Corpo scroll */}
+      <div className="p-4 max-h-[78vh] overflow-auto">
         {toast && (
-          <div className="mt-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm font-black text-rose-200">
+          <div className="mb-3 rounded-2xl border border-rose-500/20 bg-rose-50 px-4 py-3 text-sm font-black text-rose-700">
             {toast}
           </div>
         )}
 
-        <div className="mt-4 grid gap-3">
-          {/* Comp / Round */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <div className="text-xs font-black text-zinc-300 mb-1">Competição</div>
+        {/* Seção helper */}
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="text-[16px] font-black text-emerald-700">Configurações</div>
+          <div className="text-xs font-bold text-zinc-400 mt-1">Competição e fase do confronto</div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+              <div className="text-[11px] font-black text-zinc-500">Competição</div>
               <input
                 list="compList"
                 value={competition}
                 onChange={(e) => setCompetition(e.target.value)}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-zinc-100 font-black outline-none"
-                placeholder="Ex: Champions League"
+                className="mt-2 w-full outline-none font-black text-zinc-900"
+                placeholder="Ex: Libertadores"
               />
               <datalist id="compList">
                 {compList.map((x) => (
@@ -223,14 +243,14 @@ export default function MatchEditorModal({
               </datalist>
             </div>
 
-            <div>
-              <div className="text-xs font-black text-zinc-300 mb-1">Rodada</div>
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+              <div className="text-[11px] font-black text-zinc-500">Fase</div>
               <input
                 list="roundList"
                 value={round}
                 onChange={(e) => setRound(e.target.value)}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-zinc-100 font-black outline-none"
-                placeholder="Ex: Oitavas / Final / Pontos corridos"
+                className="mt-2 w-full outline-none font-black text-zinc-900"
+                placeholder="Ex: Pontos Corridos"
               />
               <datalist id="roundList">
                 {roundList.map((x) => (
@@ -239,31 +259,114 @@ export default function MatchEditorModal({
               </datalist>
             </div>
           </div>
+        </div>
 
-          {/* Times */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <div className="text-xs font-black text-zinc-300 mb-1">Time A</div>
+        {/* Mata-mata – Tipo do jogo */}
+        {isKnockoutRound(round) && (
+          <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="text-[16px] font-black text-emerald-700">MATA-MATA — Tipo do jogo</div>
+            <div className="text-xs font-bold text-zinc-400 mt-1">
+              Em Volta/Jogo Único aparece “Quem classifica?” (+1 extra)
+            </div>
+
+            <div className="mt-3 rounded-2xl bg-white border border-zinc-200 p-2 flex gap-2">
+              {(["IDA", "VOLTA", "UNICO"] as LegType[]).map((x) => (
+                <button
+                  key={x}
+                  type="button"
+                  onClick={() => setLegType(x)}
+                  className={[
+                    "flex-1 py-3 rounded-2xl font-black text-sm transition",
+                    legType === x ? "bg-emerald-700 text-white" : "bg-zinc-100 text-zinc-700",
+                  ].join(" ")}
+                >
+                  {x === "UNICO" ? "JOGO ÚNICO" : x}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-3 text-sm font-black">
+              {askQualifier ? (
+                <span className="text-emerald-700">✅ Vai aparecer: “Quem classifica?” (+1 extra)</span>
+              ) : (
+                <span className="text-zinc-500">ℹ️ Ida: NÃO aparece “Quem classifica?”</span>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-2xl border border-zinc-200 bg-white px-4 py-3">
+              <div>
+                <div className="text-xs font-black text-zinc-700">Permitir empate</div>
+                <div className="text-[11px] text-zinc-400 font-bold">igual regra do Android</div>
+              </div>
+              <input type="checkbox" checked={allowDraw} onChange={(e) => setAllowDraw(e.target.checked)} />
+            </div>
+          </div>
+        )}
+
+        {/* Times */}
+        <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="text-[16px] font-black text-emerald-700">Times</div>
+          <div className="text-xs font-bold text-zinc-400 mt-1">Escolha os clubes e carregue as logos</div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3 items-start">
+            {/* Time A */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+              <div className="text-[11px] font-black text-zinc-500">Time A</div>
               <input
                 list="teamsList"
                 value={teamA}
                 onChange={(e) => setTeamA(e.target.value)}
-                onBlur={() => autoFillLogo("A", teamA)}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-zinc-100 font-black outline-none"
-                placeholder="Ex: Real Madrid"
+                className="mt-2 w-full outline-none font-black text-zinc-900"
+                placeholder="Selecione..."
               />
+              <div className="mt-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => autoFillLogo("A", teamA)}
+                  className="w-10 h-10 rounded-2xl border border-zinc-200 bg-zinc-50 font-black"
+                  title="Buscar logo no catálogo"
+                >
+                  🔍
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImageLinks((v) => !v)}
+                  className="w-10 h-10 rounded-2xl border border-zinc-200 bg-zinc-50 font-black"
+                  title="Mostrar/ocultar links de imagem"
+                >
+                  ☁️
+                </button>
+              </div>
             </div>
 
-            <div>
-              <div className="text-xs font-black text-zinc-300 mb-1">Time B</div>
+            {/* Time B */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+              <div className="text-[11px] font-black text-zinc-500">Time B</div>
               <input
                 list="teamsList"
                 value={teamB}
                 onChange={(e) => setTeamB(e.target.value)}
-                onBlur={() => autoFillLogo("B", teamB)}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-zinc-100 font-black outline-none"
-                placeholder="Ex: Barcelona"
+                className="mt-2 w-full outline-none font-black text-zinc-900"
+                placeholder="Selecione..."
               />
+              <div className="mt-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => autoFillLogo("B", teamB)}
+                  className="w-10 h-10 rounded-2xl border border-zinc-200 bg-zinc-50 font-black"
+                  title="Buscar logo no catálogo"
+                >
+                  🔍
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImageLinks((v) => !v)}
+                  className="w-10 h-10 rounded-2xl border border-zinc-200 bg-zinc-50 font-black"
+                  title="Mostrar/ocultar links de imagem"
+                >
+                  ☁️
+                </button>
+              </div>
             </div>
 
             <datalist id="teamsList">
@@ -272,93 +375,131 @@ export default function MatchEditorModal({
               ))}
             </datalist>
           </div>
+        </div>
 
-          {/* Logos */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <div className="text-xs font-black text-zinc-300 mb-1">Logo A (URL)</div>
-              <input
-                value={teamAUrl}
-                onChange={(e) => setTeamAUrl(e.target.value)}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-zinc-100 font-bold outline-none"
-                placeholder="https://..."
-              />
-            </div>
+        {/* Imagens (colapsável) */}
+        <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="text-[16px] font-black text-emerald-700">Imagens</div>
+          <div className="text-xs font-bold text-zinc-400 mt-1">Opcional: colar link manual das logos</div>
 
-            <div>
-              <div className="text-xs font-black text-zinc-300 mb-1">Logo B (URL)</div>
-              <input
-                value={teamBUrl}
-                onChange={(e) => setTeamBUrl(e.target.value)}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-zinc-100 font-bold outline-none"
-                placeholder="https://..."
-              />
-            </div>
-          </div>
-
-          {/* Prazo + flags */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <div className="text-xs font-black text-zinc-300 mb-1">Prazo</div>
-              <input
-                type="datetime-local"
-                value={toDatetimeLocalValue(deadline)}
-                onChange={(e) => setDeadline(new Date(e.target.value))}
-                className="w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-zinc-100 font-black outline-none"
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
-              <div>
-                <div className="text-xs font-black text-zinc-300">Permitir empate</div>
-                <div className="text-[11px] text-zinc-500 font-bold">igual regra do Android</div>
-              </div>
-              <input type="checkbox" checked={allowDraw} onChange={(e) => setAllowDraw(e.target.checked)} />
-            </div>
-          </div>
-
-          {/* LegType */}
-          <div className="rounded-2xl bg-white/5 border border-white/10 px-4 py-3">
-            <div className="text-xs font-black text-zinc-300 mb-2">Perna (mata-mata)</div>
-            <select
-              value={legType}
-              onChange={(e) => setLegType(e.target.value as LegType)}
-              className="w-full rounded-2xl bg-zinc-950 border border-white/10 px-4 py-3 text-zinc-100 font-black outline-none"
-            >
-              <option value="">(sem)</option>
-              <option value="IDA">IDA</option>
-              <option value="VOLTA">VOLTA</option>
-              <option value="UNICO">JOGO ÚNICO</option>
-            </select>
-
-            <div className="mt-2 text-[11px] text-zinc-500 font-bold">
-              * O campo “Perguntar classificado” é automático: mata-mata + (VOLTA/ÚNICO)
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="mt-2 flex gap-2 justify-end">
+          {!showImageLinks ? (
             <button
-              onClick={onClose}
-              className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-zinc-200 font-black hover:bg-white/10 transition"
+              type="button"
+              onClick={() => setShowImageLinks(true)}
+              className="mt-3 w-full rounded-2xl border border-zinc-200 bg-white py-4 font-black text-zinc-500"
             >
-              Cancelar
+              Colocar Link de Imagem Manualmente
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowImageLinks(false)}
+                className="mt-3 w-full rounded-2xl border border-zinc-200 bg-white py-3 font-black text-zinc-500"
+              >
+                Ocultar Links de Imagem
+              </button>
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <input
+                  value={teamAUrl}
+                  onChange={(e) => setTeamAUrl(e.target.value)}
+                  className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 font-bold text-zinc-800 outline-none"
+                  placeholder="Link Logo A"
+                />
+                <input
+                  value={teamBUrl}
+                  onChange={(e) => setTeamBUrl(e.target.value)}
+                  className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 font-bold text-zinc-800 outline-none"
+                  placeholder="Link Logo B"
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Data e avisos */}
+        <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <div className="text-[16px] font-black text-emerald-700">Data e avisos</div>
+          <div className="text-xs font-bold text-zinc-400 mt-1">Defina o prazo do voto e se quer notificar</div>
+
+          <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
+            <div className="text-[11px] font-black text-zinc-500 mb-2">Data do Jogo</div>
+            <input
+              type="datetime-local"
+              value={toDatetimeLocalValue(deadline)}
+              onChange={(e) => setDeadline(new Date(e.target.value))}
+              className="w-full outline-none font-black text-zinc-900"
+            />
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setNotifyWhats((v) => !v)}
+              className={[
+                "flex-1 rounded-2xl border px-4 py-3 font-black transition",
+                notifyWhats ? "bg-emerald-700 text-white border-emerald-700" : "bg-white text-zinc-700 border-zinc-200",
+              ].join(" ")}
+            >
+              Whats
             </button>
 
             <button
-              disabled={saving}
-              onClick={onSave}
+              type="button"
+              onClick={() => setNotifyPush((v) => !v)}
               className={[
-                "px-4 py-3 rounded-2xl font-black transition border",
-                "bg-emerald-600/90 hover:bg-emerald-600 text-white border-emerald-500/30",
-                saving ? "opacity-70 cursor-not-allowed" : "",
+                "flex-1 rounded-2xl border px-4 py-3 font-black transition",
+                notifyPush ? "bg-emerald-700 text-white border-emerald-700" : "bg-white text-zinc-700 border-zinc-200",
               ].join(" ")}
             >
-              {saving ? "Salvando..." : "SALVAR"}
+              Push
             </button>
           </div>
         </div>
+
+        {/* Rodapé botões (Android-like) */}
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          {mode === "create" ? (
+            <>
+              <button
+                disabled={saving}
+                onClick={() => onSave("plusOne")}
+                className="rounded-2xl py-4 font-black text-white bg-orange-500 hover:bg-orange-600 transition disabled:opacity-70"
+              >
+                {saving ? "Salvando..." : "Salvar +1"}
+              </button>
+
+              <button
+                disabled={saving}
+                onClick={() => onSave("close")}
+                className="rounded-2xl py-4 font-black text-white bg-emerald-700 hover:bg-emerald-800 transition disabled:opacity-70"
+              >
+                {saving ? "Salvando..." : "Concluir"}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                disabled={saving}
+                onClick={onClose}
+                className="rounded-2xl py-4 font-black text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition disabled:opacity-70"
+              >
+                Cancelar
+              </button>
+
+              <button
+                disabled={saving}
+                onClick={() => onSave("close")}
+                className="rounded-2xl py-4 font-black text-white bg-emerald-700 hover:bg-emerald-800 transition disabled:opacity-70"
+              >
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
-  );
+  </div>
+);;
 }
