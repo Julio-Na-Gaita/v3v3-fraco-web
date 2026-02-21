@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   deleteField,
+   deleteDoc,
   getDoc,
   getDocs,
   increment,
@@ -11,6 +12,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { MatchDoc } from "./contracts";
@@ -158,4 +160,43 @@ export async function clearMatchResult(matchId: string) {
 
   await updateDoc(doc(db, "matches", matchId), patch);
   await touchAppState("match_result_cleared");
+}
+export async function softDeleteMatch(matchId: string) {
+  const matchRef = doc(db, "matches", matchId);
+  const trashRef = doc(db, "bin_matches", matchId);
+
+  const snap = await getDoc(matchRef);
+  if (!snap.exists()) throw new Error("Confronto não encontrado.");
+
+  const data = { ...(snap.data() as any), deletedAt: new Date() };
+
+  const batch = writeBatch(db);
+  batch.set(trashRef, data);
+  batch.delete(matchRef);
+  await batch.commit();
+
+  await touchAppState("match_moved_to_trash");
+}
+
+export async function restoreMatchFromTrash(matchId: string) {
+  const trashRef = doc(db, "bin_matches", matchId);
+  const matchRef = doc(db, "matches", matchId);
+
+  const snap = await getDoc(trashRef);
+  if (!snap.exists()) throw new Error("Item não encontrado na lixeira.");
+
+  const data = { ...(snap.data() as any) };
+  delete data.deletedAt; // ✅ igual Android
+
+  const batch = writeBatch(db);
+  batch.set(matchRef, data);
+  batch.delete(trashRef);
+  await batch.commit();
+
+  await touchAppState("match_restored_from_trash");
+}
+
+export async function deleteTrashedMatchPermanently(matchId: string) {
+  await deleteDoc(doc(db, "bin_matches", matchId));
+  await touchAppState("match_deleted_permanently");
 }

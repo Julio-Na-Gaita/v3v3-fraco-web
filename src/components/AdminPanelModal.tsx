@@ -14,7 +14,8 @@ import {
   Sparkles,
   ArrowLeft,
 } from "lucide-react";
-
+import AdminTrashModal from "./AdminTrashModal";
+import { softDeleteMatch } from "../lib/adminMatchesApi";
 import { subscribeMatches } from "../lib/bolaoApi";
 import type { MatchView } from "../lib/contracts";
 import AdminQuickCloseModal from "./AdminQuickCloseModal";
@@ -61,7 +62,7 @@ type Tab = "ABERTOS" | "AGUARDANDO" | "FINALIZADOS";
 export default function AdminPanelModal({ onClose }: { onClose: () => void }) {
   const [matches, setMatches] = useState<MatchView[]>([]);
   const [loading, setLoading] = useState(true);
-
+const [showTrash, setShowTrash] = useState(false);
   const [tab, setTab] = useState<Tab>("ABERTOS");
   const [q, setQ] = useState("");
 const [showQuickClose, setShowQuickClose] = useState(false);
@@ -208,7 +209,7 @@ base = base.sort((a, b) => {
 
           <div className="grid grid-cols-2 gap-3">
             <AdminTile icon={Plus} title="Novo Confronto" className="bg-blue-600/90" onClick={openCreate} />
-            <AdminTile icon={Trash2} title="Lixeira" className="bg-zinc-700/90" onClick={() => soon("Lixeira")} />
+            <AdminTile icon={Trash2} title="Lixeira" className="bg-zinc-700/90" onClick={() => setShowTrash(true)} />
 
             <AdminTile
   icon={CheckCircle2}
@@ -331,7 +332,17 @@ base = base.sort((a, b) => {
 
                     {/* 🗑️ Lixeira (em breve) */}
                     <button
-                      onClick={() => soon("Mover para lixeira")}
+                      onClick={async () => {
+  if (!confirm(`Mover para lixeira "${m.teamA} x ${m.teamB}"?`)) return;
+  try {
+    await softDeleteMatch(m.id);
+    setToast("🗑️ Movido para lixeira.");
+    setTimeout(() => setToast(null), 1400);
+  } catch (e: any) {
+    console.error(e);
+    alert(e?.message ?? "Erro ao mover para lixeira (rules/permissões).");
+  }
+}}
                       className="w-11 h-11 rounded-2xl bg-red-600/70 hover:bg-red-600 border border-red-500/30 text-white flex items-center justify-center transition"
                       title="Lixeira"
                     >
@@ -374,6 +385,7 @@ base = base.sort((a, b) => {
     }}
   />
 )}
+{showTrash && <AdminTrashModal onClose={() => setShowTrash(false)} />}
         {showResult && resultMatch && (
           <MatchResultModal
             match={resultMatch}

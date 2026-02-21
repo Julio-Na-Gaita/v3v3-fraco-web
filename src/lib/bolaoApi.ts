@@ -106,7 +106,29 @@ export function subscribeMatches(
     (err) => onError?.(err)
   );
 }
+export function subscribeBinMatches(
+  onMatches: (list: MatchView[]) => void,
+  onError?: (err: unknown) => void
+) {
+  const q = query(collection(db, "bin_matches"), orderBy("deletedAt", "desc"));
 
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => {
+        const data = d.data() as any;
+        const m = mapMatchDoc(d.id, data as MatchDoc);
+        return {
+          ...m,
+          deletedAt: tsToDate(data.deletedAt),
+        } as MatchView;
+      });
+
+      onMatches(list);
+    },
+    (err) => onError?.(err)
+  );
+}
 /**
  * 🔥 Meus palpites (para marcar seleção na UI)
  */

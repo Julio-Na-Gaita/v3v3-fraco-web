@@ -37,7 +37,7 @@ export type MatchDoc = {
   qualifier?: string | null;
 
   createdAt?: Timestamp | null;
-
+deletedAt?: Timestamp | Date | null;
   // opcionais (no Web você já usa)
   teamALogo?: string;
   teamBLogo?: string;
@@ -74,7 +74,7 @@ export type MatchView = {
   round: string;
   allowDraw: boolean;
   winner: string | null;
-
+deletedAt?: Date | null;
   deadline: Date | null;
   createdAt: Date | null;
   deadlineLabel: string;
